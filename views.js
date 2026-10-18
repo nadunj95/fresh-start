@@ -866,7 +866,12 @@ async function boot() {
   fetch('audio/tracks.json').then((r) => r.json()).then((j) => { TRACKS = j; }).catch(() => {});
   await Cloud.init();
   render();
-  // keep "today" fresh if the app stays open past midnight
+  // keep "today" fresh if the app stays open past midnight. iOS keeps a home-screen app in memory for days,
+  // so check the moment it comes back too: otherwise the first minute of taps would be logged to yesterday.
   let lastDay = todayISO();
-  setInterval(() => { const t = todayISO(); if (t !== lastDay) { if (ui.date === lastDay) ui.date = t; lastDay = t; render(); } }, 60000);
+  const rollover = () => { const t = todayISO(); if (t !== lastDay) { if (ui.date === lastDay) ui.date = t; lastDay = t; render(); } };
+  setInterval(rollover, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) rollover(); });
+  window.addEventListener('pageshow', rollover);
+  window.addEventListener('focus', rollover);
 }

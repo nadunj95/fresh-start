@@ -10,15 +10,19 @@ const noAnim = () => RM.matches || document.hidden || window.NO_ANIM;
 function spring({ from, to, velocity = 0, response = 0.4, damping = 1, onUpdate, onDone }) {
   const k = Math.pow(2 * Math.PI / response, 2), c = 4 * Math.PI * damping / response;
   let x = from - to, v = velocity, last = performance.now(), id = 0, alive = true;
+  const finish = () => { if (!alive) return; alive = false; clearTimeout(guard); cancelAnimationFrame(id); onUpdate(to); if (onDone) onDone(); };
   const step = (now) => {
     if (!alive) return;
     const dt = Math.min(0.064, (now - last) / 1000); last = now;
     for (let i = 0; i < 8; i++) { const h = dt / 8; v += (-k * x - c * v) * h; x += v * h; }
-    if (Math.abs(x) < 0.3 && Math.abs(v) < 10) { alive = false; onUpdate(to); if (onDone) onDone(); return; }
+    if (Math.abs(x) < 0.3 && Math.abs(v) < 10) { finish(); return; }
     onUpdate(to + x); id = requestAnimationFrame(step);
   };
   id = requestAnimationFrame(step);
-  return { stop() { alive = false; cancelAnimationFrame(id); } };
+  /* Frames can stop arriving (Low Power Mode, a backgrounded or throttled page). The state change a spring
+     finishes (closing a screen or a sheet) must still happen, so it lands on its end value regardless. */
+  const guard = setTimeout(finish, Math.max(700, response * 2500));
+  return { stop() { alive = false; clearTimeout(guard); cancelAnimationFrame(id); } };
 }
 /* Apple's momentum projection: where a flick would come to rest */
 const project = (v, d = 0.998) => (v / 1000) * d / (1 - d);
@@ -112,6 +116,7 @@ document.addEventListener('pointermove', (e) => {
     if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { edge = null; return; }
     if (dx < 10) return;
     edge.on = true;
+    if (pushing) { pushing.stop(); pushing = null; } // the finger takes over a slide that is still running
     capture(edge.top, e);
   }
   const W = innerWidth, x = Math.max(0, dx - 10);
