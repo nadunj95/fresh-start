@@ -641,7 +641,13 @@ function lSettings() {
 /* ------------------------------------------------------------------ SHEETS */
 function renderSheet(sh) {
   const p = sh.p || {}, date = ui.date;
-  if (sh.v === 'ready') return '<h2 class="h-lg">Readiness</h2><p class="small fg2" style="margin:6px 0 12px">' + esc(fmtD(date)) + '. Thirty seconds, then train.</p>' + readinessForm(date) + (readiness(date) ? '<div style="margin-top:14px">' + tierBanner(date) + '</div>' : '') + '<button class="btn train block" style="margin-top:16px" data-a="closeSheet">Done</button>';
+  if (sh.v === 'ready') {
+    // the check belongs to the day of the screen it was opened from (a workout can be for another day)
+    const rd = p.date || topDate(), ok = !!readiness(rd);
+    const cta = p.go ? '<button class="btn train block" style="margin-top:16px" data-a="readyGo"' + (ok ? '' : ' disabled') + '>' + (ok ? 'Start workout' : 'Sleep and neck, then start') + '</button>'
+      : '<button class="btn train block" style="margin-top:16px" data-a="closeSheet">Done</button>';
+    return '<h2 class="h-lg">Readiness</h2><p class="small fg2" style="margin:6px 0 12px">' + esc(fmtD(rd)) + '. Thirty seconds, then train.</p>' + readinessForm(rd) + (ok ? '<div style="margin-top:14px">' + tierBanner(rd) + '</div>' : '') + cta;
+  }
   if (sh.v === 'hkpaste') return hkPasteSheet();
   if (sh.v === 'exinfo') return exInfoSheet(p);
   if (sh.v === 'food') return foodSheet(p);
@@ -720,8 +726,10 @@ A.workoutMin = (el) => { closeSheet(); ui.sheet = null; push('workout', { date: 
 A.openDay = (el) => { const d = el.dataset.v, s = mainSession(plan(d)); ui.date = d; if (s) push('workout', { date: d, sid: s.sid }); else { ui.tab = 'today'; render(); } };
 A.trainWeek = (el) => { ui.trainWeek = +el.dataset.v; render(); };
 A.editReady = () => { ui.editReady = !ui.editReady; render(); };
-A.chk = (el) => { const d = day(ui.date); d.chk = d.chk || {}; d.chk[el.dataset.k] = +el.dataset.v; touch(ui.date); render(); };
-A.chkT = (el) => { const d = day(ui.date); d.chk = d.chk || {}; d.chk[el.dataset.k] = !d.chk[el.dataset.k]; touch(ui.date); render(); };
+/* readiness answers go to the day being checked: the sheet's day, else the open workout's, else the selected day */
+function chkDate() { return (ui.sheet && ui.sheet.p && ui.sheet.p.date) || topDate(); }
+A.chk = (el) => { const date = chkDate(), d = day(date); d.chk = d.chk || {}; d.chk[el.dataset.k] = +el.dataset.v; touch(date); render(); };
+A.chkT = (el) => { const date = chkDate(), d = day(date); d.chk = d.chk || {}; d.chk[el.dataset.k] = !d.chk[el.dataset.k]; touch(date); render(); };
 A.tick = (el) => {
   const k = el.dataset.v, date = topDate(), on = !isDone(date, k);
   setDone(date, k, on);

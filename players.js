@@ -46,8 +46,15 @@ function openLift(date, sid) {
 }
 A.startLift = (el) => {
   const date = topDate();
-  if (!readiness(date)) { openSheet('ready', {}); toast('Quick readiness check first'); return; }
+  // the readiness check sets today's volume; its sheet then starts the workout itself
+  if (!readiness(date)) { openSheet('ready', { date, go: el.dataset.v }); return; }
   openLift(date, el.dataset.v);
+};
+A.readyGo = () => {
+  const p = (ui.sheet && ui.sheet.p) || {}, date = p.date || topDate();
+  if (!readiness(date)) { toast('Sleep and neck first'); return; }
+  ui.sheet = null;
+  if (p.go) openLift(date, p.go); else render();
 };
 
 function lPlayer(p) {
@@ -246,7 +253,7 @@ function finishLift(p) {
 }
 function lDone(p) {
   const s = findSession(p.date, p.sid) || { title: 'Workout' }, P = plan(p.date), feel = (peek(p.date).feel || {})[p.sid];
-  let h = '<div class="layer"><div class="wrap pad" style="padding-top:calc(40px + env(safe-area-inset-top,0px));text-align:center">';
+  let h = '<div class="layer"><div class="wrap"><div class="pad" style="padding-top:calc(40px + env(safe-area-inset-top,0px));text-align:center">';
   h += '<div style="width:96px;height:96px;border-radius:50%;background:var(--good);color:#062014;display:grid;place-items:center;margin:0 auto">' + ic('check').replace('<svg', '<svg width="52" height="52"') + '</div>';
   h += '<div class="eyebrow" style="margin-top:20px">' + esc(fmtD(p.date)) + '</div><h1 class="h-xl" style="margin-top:6px">Workout complete</h1><p class="fg2" style="margin:8px 0 0">' + esc(s.title) + (P.week >= 1 && P.week <= 13 ? ' · Week ' + P.week : '') + '</p>';
   h += '<div class="kv" style="margin-top:22px;text-align:left"><div><div class="v tnum">' + p.mins + '</div><div class="k">Minutes</div></div><div><div class="v tnum">' + p.sets + '</div><div class="k">Sets logged</div></div><div><div class="v tnum">' + fmtN(p.vol) + '</div><div class="k">Volume (' + S.settings.unit + ')</div></div></div>';
@@ -254,7 +261,7 @@ function lDone(p) {
   h += '<div style="margin-top:22px"><div class="h-sm">How did that feel?</div><div class="seg train" style="margin-top:10px">' + ['Easy', 'Good', 'Tough', 'Brutal'].map((f) => '<button class="' + (feel === f ? 'on' : '') + '" data-a="feel" data-v="' + f + '">' + f + '</button>').join('') + '</div></div>';
   if (P.core && !isDone(p.date, 'core') && readiness(p.date) !== 'yellow') h += '<button class="li card" style="margin-top:16px;padding:12px;text-align:left" data-a="core" data-v="' + P.core + '">' + exThumb((D.CORE[P.week <= 2 ? 1 : P.week <= 6 ? 2 : 3][P.core] || [])[0] || 'plank_ppt', 52) + '<span class="grow"><span class="t" style="display:block">Core finisher next</span><span class="s" style="display:block">' + esc(D.CORE_NAMES[P.core]) + '</span></span>' + ic('play').replace('<svg', '<svg width="20" height="20"') + '</button>';
   h += '<p class="small muted" style="margin-top:18px">Next: the shake (1.5 scoops whey + 5 g creatine), then your ' + esc((D.MIND[P.sit] || {}).n || 'meditation') + ' before the laptop.</p>';
-  h += '</div><div class="sticky-cta pad"><div class="in"><button class="btn train block" data-a="doneFinish">Done</button></div></div></div>';
+  h += '</div></div><div class="sticky-cta pad"><div class="in"><button class="btn train block" data-a="doneFinish">Done</button></div></div></div>';
   return h;
 }
 PA.feel = (el) => { const p = topL().p, d = day(p.date); d.feel = d.feel || {}; d.feel[p.sid] = el.dataset.v; touch(p.date); render(); };

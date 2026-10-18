@@ -84,6 +84,7 @@ pop = function (velocity = 0) {
   const els = stackEls(), top = els[els.length - 1];
   if (!top || noAnim()) return _pop();
   const under = els.length > 1 ? els[els.length - 2] : $('#app');
+  top.style.pointerEvents = 'none'; // taps during the slide-out land on the screen underneath
   const commit = () => { popping = null; setX(under, 0); shade(under, 0); _pop(); };
   if (top.matches('.layer')) {
     const W = innerWidth;
@@ -147,6 +148,7 @@ function dismissSheet(v) {
   const sh = $('#sheet .sheet'), sc = $('#sheet .scrim');
   if (!sh || noAnim()) { closeSheet(); return; }
   if (dismissing) return; dismissing = true;
+  sh.style.pointerEvents = 'none'; if (sc) sc.style.pointerEvents = 'none'; // taps go through while it slides away
   const H = sh.offsetHeight + 40;
   spring({ from: sh.__y || 0, to: H, velocity: v || 0, response: 0.34, onUpdate: (y) => { setY(sh, y); if (sc) sc.style.opacity = String(Math.max(0, 1 - y / H)); }, onDone: () => { dismissing = false; closeSheet(); } });
 }
