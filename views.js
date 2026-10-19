@@ -78,7 +78,7 @@ function checklist(date) {
   const P = plan(date), d = peek(date), rows = [];
   const dn = (k) => isDone(date, k);
   rows.push({ key: 'morning', t: 'Morning light + cyclic sighing', s: '5 min · outside within an hour of waking', ic: 'sun', a: 'mind', v: 'sigh5', tone: 'mind' });
-  rows.push({ key: 'armor', t: P.armorWed ? 'Full Armor + hip add-on' : 'Armor', s: (P.armorWed ? '15' : '10') + ' min · neck, back and groin insurance', ic: 'shield', a: 'routine', v: 'armor' });
+  rows.push({ key: 'armor', t: P.armorWed ? 'Full Armor + hip add-on' : 'Armor', s: (P.armorWed ? '17' : '12') + ' min · neck, back and groin insurance', ic: 'shield', a: 'routine', v: 'armor' });
   rows.push({ key: 'deepcore', t: 'Deep Core', s: '4 min · inner abs, before food if you can', ic: 'core', a: 'routine', v: 'deepcore' });
   P.sessions.forEach((s) => {
     if (s.type === 'rest' && s.sid !== 'kickoff') return;
@@ -88,7 +88,7 @@ function checklist(date) {
   rows.push({ key: 'sit', t: (D.MIND[P.sit] || {}).n + ' meditation', s: (D.MIND[P.sit] || {}).min + ' min · after the shake, before the laptop', ic: 'mind', a: 'mind', v: P.sit, tone: 'mind' });
   if (P.walk) rows.push({ key: 'walk', t: P.walk, s: 'Nose breathing. Daily steps 9,000–11,000' + hkStepsNote(date), ic: 'walk', a: 'toggle', v: 'walk' });
   const tt = totals(date);
-  rows.push({ key: 'protein', t: 'Protein 200 g+', s: Math.round(tt.p) + ' g logged', ic: 'egg', a: 'tab', v: 'fuel', auto: tt.p >= 200, tone: 'fuel' });
+  rows.push({ key: 'protein', t: 'Protein ' + targets(date).p[0] + ' g+', s: Math.round(tt.p) + ' g logged', ic: 'egg', a: 'tab', v: 'fuel', auto: tt.p >= targets(date).p[0], tone: 'fuel' });
   rows.push({ key: 'snack', t: 'Evening protein snack', s: '30–45 g, 1–2 h before bed', ic: 'egg', a: 'logSnack', v: '', auto: mealsFor(date).some((m) => m.slot === 'snack'), tone: 'fuel' });
   if (P.sunday && P.week >= 0) rows.push({ key: 'reset', t: 'Sunday Reset', s: '15 min · the weekly check', ic: 'list', a: 'sheet', v: 'sunday' });
   const g = (d.grat || []).filter((x) => x && x.trim()).length;
@@ -147,7 +147,7 @@ function vToday() {
   const tg = targets(date), tt = totals(date);
   h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Fuel</h2><button class="link" data-a="tab" data-v="fuel">Open</button></div><div class="card row" style="gap:16px">' +
     '<div class="bigring" style="width:96px;height:96px">' + ringSVG(tt.kcal / tg.kcal, 96, 9, 'var(--fuel)') + '<div class="c"><div class="h-md tnum">' + fmtN(tt.kcal) + '</div><div class="xs muted">of ' + fmtN(tg.kcal) + '</div></div></div>' +
-    '<div class="grow"><div class="row" style="justify-content:space-between"><span class="small fg2">Protein</span><span class="small tnum"><b>' + Math.round(tt.p) + '</b> / 200 g</span></div><div class="bar" style="margin-top:6px"><i style="width:' + clamp(tt.p / 200 * 100, 0, 100) + '%;background:var(--fuel)"></i></div>' +
+    '<div class="grow"><div class="row" style="justify-content:space-between"><span class="small fg2">Protein</span><span class="small tnum"><b>' + Math.round(tt.p) + '</b> / ' + tg.p[0] + ' g</span></div><div class="bar" style="margin-top:6px"><i style="width:' + clamp(tt.p / tg.p[0] * 100, 0, 100) + '%;background:var(--fuel)"></i></div>' +
     '<div class="row" style="justify-content:space-between;margin-top:10px"><span class="small fg2">Water</span><span class="small tnum"><b>' + ((d.water || 0) * 0.5).toFixed(1) + '</b> / 4 L</span></div><div class="bar" style="margin-top:6px"><i style="width:' + clamp((d.water || 0) / 8 * 100, 0, 100) + '%;background:var(--mind)"></i></div>' +
     '<button class="btn fuel sm" style="margin-top:12px" data-a="tab" data-v="fuel">Log meals</button></div></div></section>';
 
@@ -161,7 +161,7 @@ function ringsCard(date) {
   const P = plan(date), rows = checklist(date).filter((r) => !r.optional);
   const tr = rows.filter((r) => r.session || ['armor', 'deepcore', 'core'].includes(r.key)), trD = tr.filter((r) => r.done).length;
   const prot = totals(date).p, mm = (peek(date).mind || []).reduce((a, x) => a + (x.min || 0), 0), mT = ((D.MIND[P.sit] || {}).min || 10) + 5;
-  const R = [[trD / Math.max(1, tr.length), 'var(--train)'], [prot / 200, 'var(--fuel)'], [mm / mT, 'var(--mind)']];
+  const R = [[trD / Math.max(1, tr.length), 'var(--train)'], [prot / targets(date).p[0], 'var(--fuel)'], [mm / mT, 'var(--mind)']];
   let svg = '<svg width="108" height="108" viewBox="0 0 108 108" aria-hidden="true">';
   R.forEach(([f, c], i) => {
     const r = 47 - i * 13, C = 2 * Math.PI * r, len = C * clamp(f, 0, 1);
@@ -170,7 +170,7 @@ function ringsCard(date) {
   });
   svg += '</svg>';
   const L = (n, c, v, t, u) => '<div><span style="color:' + c + '">' + n + '</span><div><b class="tnum">' + v + '</b><span class="muted" style="font-weight:500"> / ' + t + (u ? ' ' + u : '') + '</span></div></div>';
-  return '<div class="card rings" role="img" aria-label="Train ' + trD + ' of ' + tr.length + ', protein ' + Math.round(prot) + ' of 200 grams, mind ' + Math.round(mm) + ' of ' + mT + ' minutes">' + svg + '<div class="lg grow">' +
+  return '<div class="card rings" role="img" aria-label="Train ' + trD + ' of ' + tr.length + ', protein ' + Math.round(prot) + ' of ' + targets(date).p[0] + ' grams, mind ' + Math.round(mm) + ' of ' + mT + ' minutes">' + svg + '<div class="lg grow">' +
     L('Train', 'var(--train)', trD, tr.length, '') + L('Protein', 'var(--fuel)', Math.round(prot), 200, 'g') + L('Mind', 'var(--mind)', Math.round(mm), mT, 'min') + '</div></div>';
 }
 function readinessCard(date) {
@@ -349,16 +349,17 @@ function rxText(it) {
   const r = it.time ? (it.timeLabel || it.time + ' s') : it.dist ? it.dist : it.reps;
   return it.sets + ' × ' + r + (it.side ? ' per side' : '') + (it.rest ? ' · rest ' + it.rest + ' s' : '');
 }
+function gateTxt(g) { return g.day ? (g.day === 'neck' ? 'Neck day: ' : 'Back day: ') + EX[g.from].n + ' swapped' : EX[g.from].n + ' gated'; }
 function exRow(it, s, date) {
   const def = EX[it.ex] || {}, logged = setsFor(date, s.sid, it).filter((x) => x && x.done), sg = suggest(it, date);
   const doneAll = it.kind ? isDone(date, 'x:' + s.sid + ':' + it.k) : logged.length >= it.sets;
   const tags = [];
   if (it.tech) tags.push('<span class="chip train" style="height:22px;font-size:11px">' + esc(it.tech) + '</span>');
-  if (it.gated) tags.push('<span class="chip warn" style="height:22px;font-size:11px">' + ic('lock').replace('<svg', '<svg width="11" height="11"') + ' ' + esc(EX[it.gated.from].n) + ' gated</span>');
+  if (it.gated) tags.push('<span class="chip warn" style="height:22px;font-size:11px">' + ic('lock').replace('<svg', '<svg width="11" height="11"') + ' ' + esc(gateTxt(it.gated)) + '</span>');
   if (it.swapped) tags.push('<span class="chip" style="height:22px;font-size:11px">Swapped</span>');
   if (it.optional) tags.push('<span class="chip" style="height:22px;font-size:11px">Optional</span>');
   if (it.neckSkip) tags.push('<span class="chip bad" style="height:22px;font-size:11px">Skip: neck above ' + it.neckSkip + '</span>');
-  if (it.pump) tags.push('<span class="chip train" style="height:22px;font-size:11px">Peak pump finisher</span>');
+  if (it.pump) tags.push('<span class="chip train" style="height:22px;font-size:11px">' + (it.beast ? 'Beast Mode add-on' : 'Peak pump finisher') + '</span>');
   const lastTxt = logged.length ? logged.map((x) => (x.w ? x.w + '×' : '') + (x.r || x.t || '✓')).join(', ') : sg && sg.last ? 'Last: ' + sg.last.sets.map((x) => (x.w ? x.w + '×' : '') + (x.r || '')).join(', ') : '';
   return '<button class="exrow' + (doneAll ? ' done' : '') + '" data-a="exInfo" data-v="' + it.ex + '" data-k="' + it.k + '" data-s="' + s.sid + '">' + exThumb(it.ex, 60) +
     '<span class="grow" style="min-width:0"><span class="k">' + esc(it.k) + '</span> <span class="t">' + esc(def.n) + '</span><span class="s" style="display:block">' + esc(rxText(it)) + '</span>' +
@@ -380,7 +381,7 @@ function hiitOverview(s, date, P) {
     if (b.kind === 'interval') sub = b.label;
     h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">' + (i + 1) + ' · ' + esc(b.name) + '</h2>' + checkBtn(done, 'tick', 'b:' + s.sid + ':' + i, b.name + ' done') + '</div><div class="group">';
     const items = b.items || [{ ex: b.ex, label: '' }];
-    items.forEach((x) => { h += '<button class="exrow" data-a="exInfo" data-v="' + x.ex + '">' + exThumb(x.ex, 56) + '<span class="grow"><span class="t">' + esc(EX[x.ex].n) + '</span><span class="s" style="display:block">' + esc(x.label || '') + '</span></span></button>'; });
+    items.forEach((x) => { const xe = dayEx(x.ex, date).ex; h += '<button class="exrow" data-a="exInfo" data-v="' + xe + '">' + exThumb(xe, 56) + '<span class="grow"><span class="t">' + esc(EX[xe].n) + '</span><span class="s" style="display:block">' + esc(x.label || '') + '</span></span></button>'; });
     h += '<div style="padding:8px 14px 10px"><div class="small fg2" style="margin-bottom:10px">' + esc(sub) + (b.ex === 'landmine_rot' ? '' : '') + '</div><button class="btn train sm" data-a="startBlock" data-v="' + i + '" data-s="' + s.sid + '">' + ic('timer').replace('<svg', '<svg width="18" height="18"') + ' Start ' + ({ interval: 'intervals', circuit: 'circuit', sprints: 'sprints', amrap: 'AMRAP', sets: 'sets' })[b.kind] + '</button>' +
       (b.kind === 'amrap' ? '<span class="small muted" style="margin-left:10px">' + (peek(date).rounds && peek(date).rounds[s.sid + ':' + i] != null ? 'Logged: ' + peek(date).rounds[s.sid + ':' + i] + ' rounds' : '') + '</span>' : '') + '</div></div></section>';
   });
@@ -408,9 +409,9 @@ function cardioOverview(s, date, P) {
 function restOverview(s, date, P) {
   const rows = [];
   if (s.sid === 'kickoff') rows.push(['k:waist', 'Get a tape measure ready for Monday', 'Waist at the navel, relaxed, morning'], ['k:weigh', 'Weigh in tomorrow morning', 'Daily weigh-ins feed the 7-day average'], ['k:book', "Book the week's training times", 'Mon Pull · Tue Legs · Thu Push · Fri Rugby · Sat run'], ['k:cook', 'Cook protein for Mon–Wed', 'Chicken, 93/7 beef, eggs, cottage cheese'], ['k:reminder', 'Set a recurring desk-reset reminder', 'Every 60 min on workdays']);
-  if (s.type === 'recovery' && s.sid !== 'pack') rows.push(['armor', 'Full Armor', '10 min'], ['armorWed', 'Hip add-on: 90/90 switches, adductor rockback, hip flexor stretch', '5 min'], ['walk', P.walk || 'Walk 40–45 min', 'Nose breathing']);
-  if (s.sid === 'pack') rows.push(['walk', 'Walk 45 min', ''], ['armor', 'Armor', '10 min'], ['k:pack', 'Pack: neck pillow, compression socks, protein snacks', '']);
-  if (s.sid === 'sunday' || s.sid === 'xmas') rows.push(['walk', P.walk || 'Long walk 45–60 min', s.sid === 'sunday' ? 'Make it phone-free: no podcast, no calls' : 'After the big meal'], ['reset', 'Sunday Reset', 'Open the weekly check'], ['armor', 'Armor', '10 min']);
+  if (s.type === 'recovery' && s.sid !== 'pack') rows.push(['armor', 'Full Armor', '12 min'], ['armorWed', 'Hip add-on: 90/90 switches, adductor rockback, hip flexor stretch', '5 min'], ['walk', P.walk || 'Walk 40–45 min', 'Nose breathing']);
+  if (s.sid === 'pack') rows.push(['walk', 'Walk 45 min', ''], ['armor', 'Armor', '12 min'], ['k:pack', 'Pack: neck pillow, compression socks, protein snacks', '']);
+  if (s.sid === 'sunday' || s.sid === 'xmas') rows.push(['walk', P.walk || 'Long walk 45–60 min', s.sid === 'sunday' ? 'Make it phone-free: no podcast, no calls' : 'After the big meal'], ['reset', 'Sunday Reset', 'Open the weekly check'], ['armor', 'Armor', '12 min']);
   if (s.type === 'travel') rows.push(['t:walk', 'Walk the aisle every 1–2 h', ''], ['t:socks', 'Compression socks', ''], ['t:pillow', 'Supportive neck pillow', ''], ['t:water', '3 L of water', ''], ['t:protein', 'Protein snacks', ''], ['armor', 'Armor before you leave', '']);
   let h = '<section class="pad section"><div class="sec-h"><h2 class="h-md">' + (s.type === 'travel' ? 'Travel checklist' : 'Today') + '</h2></div><div class="list">';
   rows.forEach(([k, t, sub]) => {
@@ -449,17 +450,17 @@ function vFuel() {
   h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Supplements</h2></div><div class="list">' + D.SUPPS.filter((x) => !x.months || x.months.includes(m)).map((x) => {
     const on = !!(d.supps && d.supps[x.id]);
     return '<div class="li"><span class="grow"><span class="t" style="display:block">' + esc(x.n) + '</span><span class="s" style="display:block">' + esc(x.d) + '</span></span>' + checkBtn(on, 'supp', x.id, x.n) + '</div>';
-  }).join('') + '</div><p class="xs muted" style="margin:6px 2px 0">Caffeine 200–300 mg before training, none after 2 pm.</p></section>';
+  }).join('') + '</div><p class="xs muted" style="margin:6px 2px 0">Caffeine 150–200 mg before training (Jeff: 100–200), none after 2 pm.</p></section>';
 
   // drinks + free meals
   if (dw >= 3) {
-    const dr = d.drinks || {}, tot = D.DRINKS.reduce((a, x) => a + (dr[x.id] || 0), 0);
-    h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Drinks</h2><span class="small ' + (tot > 4 ? '' : 'muted') + ' tnum" style="' + (tot > 4 ? 'color:var(--bad)' : '') + '">' + tot + ' tonight · cap 3–4</span></div>';
-    if (dw === 3) h += '<div style="margin-bottom:10px">' + bannerHTML('warn', '<b>No drinks tonight.</b> Friday is Rugby Day.') + '</div>';
+    const dr = d.drinks || {}, tot = D.DRINKS.reduce((a, x) => a + (dr[x.id] || 0), 0), wk = drinksThisWeek(date), bud = drinkBudget(date), bad = tot > ((D.DRINK_BUDGET && D.DRINK_BUDGET.night) || 4) || wk > bud;
+    h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Drinks</h2><span class="small ' + (bad ? '' : 'muted') + ' tnum" style="' + (bad ? 'color:var(--bad)' : '') + '">' + tot + ' tonight · ' + wk + '/' + bud + ' this week</span></div><p class="xs muted" style="margin:-4px 2px 8px">Cap 3–4 a night. Jeff’s lean-down number is 3–4 a week; holiday weeks get room for 10.</p>';
+    if (dw === 3 && !BIG_DAYS[date]) h += '<div style="margin-bottom:10px">' + bannerHTML('warn', '<b>No drinks tonight.</b> Friday is Rugby Day.') + '</div>';
     h += '<div class="list">' + D.DRINKS.map((x) => '<div class="li"><span class="grow"><span class="t" style="display:block">' + esc(x.n) + '</span><span class="s" style="display:block">~' + x.kcal + ' kcal</span></span><div class="row" style="gap:6px"><button class="icon-btn" style="width:36px;height:36px" data-a="drink" data-v="' + x.id + '" data-d="-1" aria-label="One fewer">' + ic('minus') + '</button><span class="h-md tnum" style="min-width:20px;text-align:center">' + (dr[x.id] || 0) + '</span><button class="icon-btn" style="width:36px;height:36px" data-a="drink" data-v="' + x.id + '" data-d="1" aria-label="One more">' + ic('plus') + '</button></div></div>').join('') + '</div><p class="xs muted" style="margin:6px 2px 0">Alternate each drink with water. Last drink about 3 h before bed.</p></section>';
   }
-  const fm = freeMealsThisWeek(date);
-  h += '<section class="pad section"><div class="card row"><div class="grow"><div class="h-sm">Free meals this week</div><div class="small muted" style="margin-top:3px">Two a week at lunch. Anchor with 40+ g protein, one sitting.</div></div><div class="big-num tnum" style="font-size:40px;color:' + (fm > 2 ? 'var(--bad)' : 'var(--fuel)') + '">' + fm + '<span class="muted" style="font-size:22px">/2</span></div></div></section>';
+  const fm = freeMealsThisWeek(date), fcap = freeMealCap(date);
+  h += '<section class="pad section"><div class="card row"><div class="grow"><div class="h-sm">Free meals this week</div><div class="small muted" style="margin-top:3px">' + (fcap === 1 ? 'One a week in Peak (Weeks 11–12). Holiday days don’t count.' : 'Two a week at lunch. Anchor with 40+ g protein, one sitting.') + '</div></div><div class="big-num tnum" style="font-size:40px;color:' + (fm > fcap ? 'var(--bad)' : 'var(--fuel)') + '">' + fm + '<span class="muted" style="font-size:22px">/' + fcap + '</span></div></div></section>';
 
   h += '<section class="section"><div class="sec-h pad"><h2 class="h-md">Guides</h2></div><div class="rail pad">' + D.GUIDES.map((g) => '<button class="tile" data-a="sheet" data-v="guide" data-s="' + g.id + '"><div class="art art-' + g.tone + '" style="display:grid;place-items:center">' + foodGlyph(g.tone, 54) + '</div><div class="tx"><div class="tt">' + esc(g.t) + '</div></div></button>').join('') + '</div></section>';
   return h;

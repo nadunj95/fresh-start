@@ -309,7 +309,10 @@ function plan(date) {
     case 1: lift('legs', 'B'); break;
     case 2:
       if (pivot) { lift('push', 'C'); P.notes.push({ tone: 'train', t: 'Pivot week: Push moves to Wednesday so Thursday morning is the Turkey Burner.' }); }
-      else { P.sessions.push({ sid: 'w' + w + '-rec', type: 'recovery', title: 'Recovery', sub: 'Full Armor + walk', dur: '15 min', hero: 'hip_flexor' }); P.armorWed = true; }
+      else {
+        P.sessions.push({ sid: 'w' + w + '-rec', type: 'recovery', title: 'Recovery', sub: 'Full Armor + walk', dur: '15 min', hero: 'hip_flexor' }); P.armorWed = true;
+        if (w >= 3 && w <= 12 && D.MIN && D.MIN.regen) P.sessions.push(sess('w' + w + '-regen', 'lift', D.MIN.regen, { kind: 'regen', mods, optional: holiday }));
+      }
       break;
     case 3:
       if (pivot) P.sessions.push({ sid: 'turkey', type: 'hiit', title: D.TURKEY.title, sub: D.TURKEY.sub, dur: D.TURKEY.dur, hero: D.TURKEY.hero, src: D.TURKEY, mods });
@@ -332,6 +335,9 @@ function plan(date) {
   if (holiday && P.sessions.some((s) => s.type === 'lift')) P.notes.push({ tone: 'train', t: 'Holiday Express: ⅔ of the sets, same loads and effort, finishers optional, about 40 min.' });
   if (pivot && P.sessions.some((s) => s.type === 'lift')) P.notes.push({ tone: 'train', t: 'Pivot deload: same loads, about 60% of the sets, stop at RIR 3.' });
   if (peak && P.sessions.some((s) => s.type === 'lift' && (s.kind === 'pull' || s.kind === 'push'))) P.notes.push({ tone: 'train', t: 'Peak: last set of every isolation exercise is a drop set or myo-reps, plus the 8-min pump finisher.' });
+  const hasLift = P.sessions.some((s) => s.type === 'lift' || s.type === 'hiit'), chk0 = peek(date).chk;
+  if (hasLift && chk0 && (chk0.neck >= 3 || chk0.arm)) P.notes.push({ tone: 'warn', t: 'High-neck day: carries, hanging ab work and pull-ups are swapped for neck-friendly versions; barbell bench becomes DBs. Arm tingling during a set stops that exercise.' });
+  if (hasLift && chk0 && chk0.back >= 4) P.notes.push({ tone: 'warn', t: 'High-back day: one set fewer, reverse hyper becomes a glute bridge, finisher optional.' });
   if (w === 2 && dw === 5) P.notes.push({ tone: 'warn', t: 'Halloween tonight. Weekend drink rules apply.' });
 
   // tests and benchmarks
@@ -356,7 +362,7 @@ function sitFor(w, dw) {
   return dw === 6 ? 'sit30' : 'open20';
 }
 function benchCol(w) { return w <= 2 ? 'base' : w <= 8 ? 'w6' : 'w12'; }
-function mainSession(P) { return P.sessions.find((s) => s.type !== 'rest') || P.sessions[0] || null; }
+function mainSession(P) { return P.sessions.find((s) => s.type === 'lift') || P.sessions.find((s) => s.type !== 'rest') || P.sessions[0] || null; }
 function isTraining(s) { return s && ['lift', 'hiit', 'cardio'].includes(s.type) && !s.optional; }
 
 /* ------------------------------------------------------------------ readiness + gates */
@@ -373,6 +379,7 @@ function readiness(date) {
   let r = 'green';
   if (sl < 5 || c.neck >= 5 || c.arm || c.sick) r = 'red';
   else if (sl < 7 || c.neck >= 3 || c.sore) r = 'yellow';
+  if (c.back != null) { if (c.back >= 6) r = 'red'; else if (c.back >= 4 && r === 'green') r = 'yellow'; }
   const t = typeof recovery === 'function' ? recovery(date).tier : null;
   if (t === 'red') r = 'red';
   else if (t === 'yellow' && r === 'green') r = 'yellow';
@@ -419,14 +426,21 @@ function gateStatus(g, date) {
 }
 
 /* resolve an exercise through gates, week swaps and manual swaps */
-function resolveEx(item, date, week) {
-  let ex = item.ex, gated = null;
-  if (item.fromWeek) { Object.keys(item.fromWeek).forEach((wk) => { if (week >= +wk) ex = item.fromWeek[wk]; }); }
-  const def = EX[ex];
-  if (def && def.gate && !gateOpen(def.gate, date)) { gated = { from: ex, gate: def.gate }; ex = def.alt; }
-  // the overhead press slot falls back to landmine if its own gate is closed
-  if (EX[ex] && EX[ex].gate && !gateOpen(EX[ex].gate, date)) { gated = gated || { from: ex, gate: EX[ex].gate }; ex = EX[ex].alt; }
+function dayEx(ex, date) {
+  let gated = null; const chk = peek(date).chk;
+  for (let i = 0; i < 4; i++) {
+    const d = EX[ex]; if (!d) break;
+    if (d.gate && !gateOpen(d.gate, date)) { gated = gated || { from: ex, gate: d.gate }; ex = d.alt; }
+    else if (d.neckAlt && chk && (chk.neck > (d.neckMax ?? 2) || chk.arm)) { gated = gated || { from: ex, day: 'neck' }; ex = d.neckAlt; }
+    else if (d.backAlt && chk && chk.back != null && chk.back > (d.backMax ?? 2)) { gated = gated || { from: ex, day: 'back' }; ex = d.backAlt; }
+    else break;
+  }
   return { ex, gated };
+}
+function resolveEx(item, date, week) {
+  let ex = item.ex;
+  if (item.fromWeek) { Object.keys(item.fromWeek).forEach((wk) => { if (week >= +wk) ex = item.fromWeek[wk]; }); }
+  return dayEx(ex, date);
 }
 
 /* items for a lift session after week modifiers, readiness and swaps */
@@ -435,6 +449,8 @@ function sessionItems(s, date) {
   const mods = s.mods || {};
   let items = s.src.items.map((it) => Object.assign({}, it));
   if (mods.peak && (s.kind === 'pull' || s.kind === 'push')) items = items.concat(D.PUMP[s.kind].map((it) => Object.assign({ pump: true }, it)));
+  if (typeof dayTier === 'function' && dayTier(date) === 'push' && !mods.peak && (s.kind === 'pull' || s.kind === 'push') && D.PUMP && D.PUMP[s.kind]) items = items.concat(D.PUMP[s.kind].map((it) => Object.assign({ pump: true, beast: true, optional: true }, it)));
+  const lifty = s.kind === 'pull' || s.kind === 'legs' || s.kind === 'push';
   return items.map((it) => {
     const res = resolveEx(it, date, w);
     const swap = dd.swaps && dd.swaps[it.k];
@@ -445,9 +461,13 @@ function sessionItems(s, date) {
     const optional = it.optional || (it.kind && (r === 'yellow' || mods.holiday)) || (it.pump && r === 'yellow');
     const neckSkip = it.neckSkip != null && dd.chk && dd.chk.neck > it.neckSkip;
     const isoTech = mods.peak && !it.scheme && !it.kind && /curl|fly|raise|pushdown|extension|lateral|calf|leg_ext|leg_curl/.test(ex);
+    const iso = /curl|fly|raise|pushdown|extension|lateral|calf|leg_ext|leg_curl|xbody|leanaway|pulldown|face_pull/.test(ex);
+    let tech = it.tech || (isoTech ? 'Peak: drop set or myo-reps on the last set' : '');
+    if (!tech && lifty && w >= 3 && w <= 12 && !mods.pivot && !mods.holiday && !it.scheme && !it.kind && iso) tech = 'Last set to failure';
+    if (lifty && w >= 7 && w <= 12 && !it.kind && !it.pump && !it.time && !it.dist && !/nordic|ez_21s/.test(ex)) { const lw = it.scheme === 'top' ? '3-s lowering on back-offs' : '3-s lowering'; tech = tech ? tech + ' · ' + lw : lw; }
     const skipped = !!(dd.skip && dd.skip[ex]);
     return Object.assign({}, it, { ex, baseEx: it.ex, gated: swap ? null : res.gated, swapped: !!swap, sets, optional, neckSkip, skipped,
-      tech: it.tech || (isoTech ? 'Peak: drop set or myo-reps on the last set' : '') });
+      tech });
   });
 }
 function groupItems(items) {
@@ -464,32 +484,37 @@ function groupItems(items) {
 /* ------------------------------------------------------------------ logging helpers */
 const setKey = (sid, it) => sid + '|' + it.k + '|' + it.ex;
 function setsFor(date, sid, it) { const d = peek(date); return (d.sets && d.sets[setKey(sid, it)]) || []; }
-function lastSets(ex, beforeDate) {
-  const dates = Object.keys(S.days).filter((d) => d < beforeDate).sort().reverse();
+function lastN(ex, beforeDate, n) {
+  const dates = Object.keys(S.days).filter((d) => d < beforeDate).sort().reverse(), out = [];
   for (const d of dates) {
     const sets = S.days[d].sets; if (!sets) continue;
     for (const k of Object.keys(sets)) {
-      if (k.split('|')[2] === ex && sets[k].some((x) => x && x.done)) return { date: d, sets: sets[k].filter((x) => x && x.done) };
+      if (k.split('|')[2] === ex && sets[k].some((x) => x && x.done)) { out.push({ date: d, sets: sets[k].filter((x) => x && x.done) }); break; }
     }
+    if (out.length >= n) break;
   }
-  return null;
+  return out;
 }
+function lastSets(ex, beforeDate) { return lastN(ex, beforeDate, 1)[0] || null; }
 function suggest(it, date) {
-  const last = lastSets(it.ex, date);
+  const prev = lastN(it.ex, date, 2), last = prev[0];
   if (!last) return null;
   const def = EX[it.ex] || {};
   const inc = def.lower ? 10 : 5;
   const ws = last.sets.map((x) => num(x.w)).filter((x) => x != null);
   if (!ws.length) return { last, w: null, msg: '' };
   const top = Math.max.apply(null, ws);
-  let w = top, msg = 'Same weight as last time';
+  let w = top, msg = 'Same weight as last time', add = false;
   if (it.scheme === 'top') {
     const ts = last.sets[0], tr = topOf(it.topReps);
-    if (ts && tr && +ts.r >= tr) { w = top + inc; msg = 'Hit ' + ts.r + ' on the top set: add ' + inc + ' lb'; }
+    if (ts && tr && +ts.r >= tr) { w = top + inc; add = true; msg = 'Hit ' + ts.r + ' on the top set: add ' + inc + ' lb'; }
+    else if (tr && prev.length > 1 && prev.every((p) => p.sets[0] && +p.sets[0].r < tr)) { const tw = num(last.sets[0].w); w = tw != null ? tw : top; msg = 'Missed the range twice: same load, add 1 s to the lowering (or 1 rep)'; }
   } else {
     const tr = topOf(it.reps);
-    if (tr && last.sets.length >= Math.min(2, it.sets) && last.sets.every((x) => +x.r >= tr)) { w = top + inc; msg = 'Top of the range on every set: add ' + inc + ' lb'; }
+    if (tr && last.sets.length >= Math.min(2, it.sets) && last.sets.every((x) => +x.r >= tr)) { w = top + inc; add = true; msg = 'Top of the range on every set: add ' + inc + ' lb'; }
   }
+  const ck = peek(date).chk;
+  if (add && def.capped && ck && ck.neck > 1) { w = top; msg = 'Range hit, but the neck isn’t at 0–1 today: add a 2-s pause or 1½ reps before adding load'; }
   const gap = daysBetween(last.date, date);
   if (gap > 7) { w = rnd5(w * 0.9); msg = 'Back after ' + gap + ' days off: last loads minus 10%'; }
   return { last, w, msg };
@@ -527,7 +552,7 @@ function targets(date) {
   if (date >= '2027-01-12' && date <= '2027-01-14') { kcal += 600; label = 'Taper · +150 g carbs'; }
   kcal += S.settings.kcalAdj || 0;
   const weekend = dw >= 4;
-  return { kcal, label, p: [200, 220], fat: weekend ? [70, 90] : [60, 70], carbs: weekend ? null : [220, 250], water: 4 };
+  return { kcal, label, p: D.PROTEIN ? (weekOf(date) >= D.PROTEIN.lateFrom ? D.PROTEIN.late : D.PROTEIN.early) : [200, 220], fat: weekend ? [70, 90] : [60, 70], carbs: weekend ? null : [220, 250], water: 4 };
 }
 function foodById(id) { return D.FOODS.find((f) => f.id === id); }
 function mealsFor(date) { return peek(date).meals || []; }
@@ -559,6 +584,14 @@ function freeMealsThisWeek(date) {
   for (let i = 0; i < 7; i++) n += mealsFor(addDays(mon, i)).filter((m) => m.free).length;
   return n;
 }
+
+function drinksThisWeek(date) {
+  const mon = mondayOf(date); let n = 0;
+  for (let i = 0; i < 7; i++) { const dr = peek(addDays(mon, i)).drinks || {}; D.DRINKS.forEach((x) => { n += dr[x.id] || 0; }); }
+  return n;
+}
+function drinkBudget(date) { const b = D.DRINK_BUDGET; return b ? (b.holidayWeeks.includes(weekOf(date)) ? b.holiday : b.normal) : 6; }
+function freeMealCap(date) { const f = D.FREE_MEALS; return f ? (f.peakWeeks.includes(weekOf(date)) ? f.peak : f.normal) : 2; }
 
 /* ------------------------------------------------------------------ weight */
 function weights() { return Object.keys(S.days).filter((d) => num(S.days[d].weight) != null).sort().map((d) => ({ d, w: num(S.days[d].weight) })); }
@@ -694,3 +727,4 @@ function toast(msg) {
   el.textContent = msg; el.hidden = false;
   clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 2200);
 }
+

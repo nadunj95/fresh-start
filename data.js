@@ -27,7 +27,7 @@
       cues: ['Bench at 45–60°, arms hanging straight down.', 'Curl without letting the elbows drift forward.', 'Lower all the way to a full stretch.'] },
     hammer_curl: { n: 'Hammer curl', img: 'Hammer_Curls', eq: 'Dumbbells', m: 'Brachialis, forearms',
       cues: ['Neutral grip, palms facing each other.', 'Elbows pinned to your sides.', 'No swinging; 2 s down.'] },
-    ng_pullup: { n: 'Neutral-grip pull-up', img: 'V-Bar_Pullup', eq: 'Pull-up bar (neutral handles)', m: 'Lats, biceps',
+    ng_pullup: { n: 'Neutral-grip pull-up', img: 'V-Bar_Pullup', eq: 'Pull-up bar (neutral handles)', m: 'Lats, biceps', neckAlt: 'ng_pulldown',
       cues: ['Start from a dead hang, shoulders pulled down first.', 'Drive the elbows to your ribs, chest to the bar.', 'Add weight once 3 × 8 at bodyweight is easy.'] },
     tbar_row: { n: 'Chest-supported T-bar / seal row', img: 'Lying_T-Bar_Row', eq: 'T-bar row machine or seal bench', m: 'Mid back, lats',
       cues: ['Chest stays glued to the pad.', 'Row the elbows back and squeeze for 1 s.', 'Last set: rest-pause.'] },
@@ -39,7 +39,7 @@
       cues: ['7 reps bottom half, 7 reps top half, 7 full reps.', 'No rest between the parts.', 'Use about 70% of your normal curl weight.'] },
     farmer: { n: "Farmer's carry", img: 'Farmers_Walk', eq: 'Dumbbells, kettlebells or handles', m: 'Grip, traps, core',
       cues: ['Moderate load. Shoulders packed down, not shrugged.', 'Walk tall with short, quick steps.', 'Skip it today if the neck is above 2/10.'] },
-    w_pullup: { n: 'Weighted pull-up clusters', img: 'Weighted_Pull_Ups', eq: 'Pull-up bar · dip belt', m: 'Lats, biceps',
+    w_pullup: { n: 'Weighted pull-up clusters', img: 'Weighted_Pull_Ups', eq: 'Pull-up bar · dip belt', m: 'Lats, biceps', neckAlt: 'ng_pulldown',
       cues: ['Load at about your 5-rep max.', 'Do 3 reps, rest 15 s on the bar or off it, then 2 more.', 'Full dead hang between reps.'] },
     pendlay: { n: 'Pendlay row', img: 'Bent_Over_Barbell_Row', eq: 'Barbell', m: 'Upper back, lats', gate: 'pendlay', alt: 'tbar_row',
       cues: ['Torso near parallel, back flat.', 'Pull the bar from the floor to the lower chest explosively.', 'Reset on the floor each rep.'] },
@@ -51,6 +51,11 @@
       cues: ['Body in a straight plank line.', 'Pull the chest to the bar.', 'Lower under control.'] },
     scap_pullup: { n: 'Scap pull-up', img: 'Scapular_Pull-Up', eq: 'Pull-up bar', m: 'Lower traps, lats',
       cues: ['Hang with straight arms.', 'Pull the shoulder blades down without bending the elbows.', 'Pause 1 s, release slowly.'] },
+
+    leanaway_lateral: { n: 'Lean-away cable lateral raise', img: 'Standing_Low-Pulley_Deltoid_Raise', eq: 'Cable · single handle', m: 'Side delts', side: true,
+      cues: ['Hold the stand and lean away from the cable.', 'Stop below shoulder height, shoulders down.', 'Lead with the elbow, 2 s down.'] },
+    xbody_hammer: { n: 'Cross-body hammer curl', img: 'Cross_Body_Hammer_Curl', eq: 'Dumbbells', m: 'Brachialis, forearms',
+      cues: ['Curl the dumbbell across toward the opposite shoulder.', 'Elbow pinned to your side.', 'No swinging; 2 s down.'] },
 
     /* Legs */
     goblet_box: { n: 'Goblet squat to box, heels elevated', img: 'Goblet_Squat', eq: 'Dumbbell or kettlebell · box · wedge', m: 'Quads, glutes', lower: true,
@@ -81,6 +86,10 @@
       cues: ['Rear foot on the bench, front foot far enough forward.', 'Drop straight down, slight forward lean.', 'Drive through the front heel.'] },
     leg_ext: { n: 'Leg extension', img: 'Leg_Extensions', eq: 'Leg extension machine', m: 'Quads', lower: true,
       cues: ['Knee lined up with the machine pivot.', 'Squeeze 1 s at the top.', 'Lower for 2–3 s.'] },
+    reverse_hyper: { n: 'Reverse hyper (or 45° back extension)', img: 'Reverse_Hyperextension', eq: 'Reverse hyper, or a 45° back-extension bench', m: 'Glutes, low back', backAlt: 'bridge_squeeze', backMax: 2,
+      cues: ['Squeeze the glutes to lift the legs (on a 45° bench, round slightly and drive with the glutes).', 'Stop at a straight line; no overarching.', 'Controlled 2-s lower.'] },
+    nordic: { n: 'Nordic hamstring negative', img: 'Natural_Glute_Ham_Raise', eq: 'Pad · anchored ankles (partner or bar)', m: 'Hamstrings (eccentric)',
+      cues: ['Hips straight, body in one line.', 'Lower as slowly as you can, about 5 s.', 'Catch with your hands and push back up.'] },
     deadbug_pullover: { n: 'Dead bug with band pullover', img: 'Dead_Bug', eq: 'Band or light DB', m: 'Deep core', side: true,
       cues: ['Low back pressed down, knees over hips.', 'Pull the band overhead tension while one leg extends.', 'Exhale fully on every rep.'] },
     walking_lunge: { n: 'DB walking lunge', img: 'Dumbbell_Lunges', eq: 'Dumbbells', m: 'Quads, glutes', side: true, lower: true,
@@ -89,9 +98,9 @@
       cues: ['Push and pull with arms and legs.', 'Hard means RPE 8 — you can hold it for the full interval.', 'Easy means really easy.'] },
 
     /* Push */
-    db_bench: { n: 'Flat DB bench press', img: 'Dumbbell_Bench_Press', eq: 'Dumbbells · flat bench', m: 'Chest, triceps',
+    db_bench: { capped: true, n: 'Flat DB bench press', img: 'Dumbbell_Bench_Press', eq: 'Dumbbells · flat bench', m: 'Chest, triceps',
       cues: ['Shoulder blades down and back, minimal arch.', 'Lower to the chest with elbows ~45°.', 'Press up and slightly in.'] },
-    landmine_press: { n: 'Half-kneeling landmine press', img: 'Landmine_Linear_Jammer', eq: 'Landmine · barbell', m: 'Shoulders, upper chest, serratus', side: true,
+    landmine_press: { capped: true, n: 'Half-kneeling landmine press', img: 'Landmine_Linear_Jammer', eq: 'Landmine · barbell', m: 'Shoulders, upper chest, serratus', side: true,
       cues: ['Half-kneel, same-side knee down as the pressing arm.', 'Press up and forward along the bar path, reach at the top.', 'Ribs down, glute squeezed. Neck-friendly overhead pattern.'] },
     cable_fly: { n: 'Cable fly, mid-height', img: 'Cable_Crossover', eq: 'Cable · D-handles', m: 'Chest',
       cues: ['Pulleys at chest height, slight forward stance.', 'Soft elbows, hug a big tree.', 'Stretch wide, squeeze in front.'] },
@@ -103,16 +112,18 @@
       cues: ['Cable set at shoulder height on the opposite side.', 'Extend the arm across the body, elbow fixed.', 'Full stretch, full lockout.'] },
     pushup_plus: { n: 'Push-up plus', img: 'Pushups', eq: 'Bodyweight (hands elevated if needed)', m: 'Chest, serratus',
       cues: ['Normal push-up, then at the top push the floor away further.', 'Let the shoulder blades wrap around the ribs.', 'Hands on a bench if needed to keep RIR 2.'] },
-    bench: { n: 'Bench press (barbell or DB)', img: 'Barbell_Bench_Press_-_Medium_Grip', eq: 'Barbell or dumbbells', m: 'Chest, triceps',
-      cues: ['Minimal arch, feet planted.', 'Bar to the lower chest, elbows ~45°.', 'Top set first, then back-offs.'] },
+    bench: { n: 'Bench press (barbell or DB)', img: 'Barbell_Bench_Press_-_Medium_Grip', eq: 'Barbell or dumbbells', m: 'Chest, triceps', neckAlt: 'db_bench', neckMax: 1,
+      cues: ['Barbell only when the neck is 0–1; otherwise the app gives you DBs.', "Shoulder blades back and down; minimal arch; don't drive the head into the bench.", 'Bar to the lower chest, elbows ~45°.'] },
     incline_db: { n: '30° incline DB press', img: 'Incline_Dumbbell_Press', eq: 'Dumbbells · incline bench', m: 'Upper chest',
       cues: ['Bench at 30°, shoulder blades set.', 'Lower to the upper chest.', 'Press up without banging the DBs.'] },
     hl_cable_fly: { n: 'High-to-low cable fly', img: 'Cable_Crossover', eq: 'Cable · D-handles', m: 'Lower chest',
       cues: ['Pulleys high, sweep down toward the hips.', 'Soft elbows.', 'Last set: mechanical drop (step forward and keep going).'] },
-    seated_db_press: { n: 'Seated neutral-grip DB shoulder press', img: 'Seated_Dumbbell_Press', eq: 'Dumbbells · upright bench', m: 'Shoulders', gate: 'ohp_seated', alt: 'landmine_press',
+    seated_db_press: { capped: true, n: 'Seated neutral-grip DB shoulder press', img: 'Seated_Dumbbell_Press', eq: 'Dumbbells · upright bench', m: 'Shoulders', gate: 'ohp_seated', alt: 'landmine_press',
       cues: ['Only if the neck has been quiet for 3+ weeks.', 'Palms facing each other, ribs down.', 'Press up without jutting the head forward.'] },
-    hk_db_press: { n: 'Half-kneeling 1-arm DB press', img: 'Standing_Palm-In_One-Arm_Dumbbell_Press', eq: 'Dumbbell', m: 'Shoulders, core', side: true, gate: 'ohp', alt: 'landmine_press',
+    hk_db_press: { capped: true, n: 'Half-kneeling 1-arm DB press', img: 'Standing_Palm-In_One-Arm_Dumbbell_Press', eq: 'Dumbbell', m: 'Shoulders, core', side: true, gate: 'ohp', alt: 'landmine_press',
       cues: ['Half-kneel, glute squeezed, ribs down.', 'Neutral grip, press up and slightly forward.', 'Stop the set at any neck or arm symptom.'] },
+    incline_cable_press: { n: 'Low-incline cable press', img: 'Incline_Cable_Chest_Press', eq: 'Cables · incline bench', m: 'Upper chest',
+      cues: ['Bench at 15–30°, shoulder blades set.', 'Press up and slightly in, elbows ~45°.', 'Stretch fully at the bottom, 2 s down.'] },
     pushup: { n: 'Push-up', img: 'Pushups', eq: 'Bodyweight', m: 'Chest, triceps',
       cues: ['Straight line from head to heels.', 'Chest to the floor.', 'Elbows about 45°.'] },
     pushup_ladder: { n: 'Push-up ladder', img: 'Pushups', eq: 'Bodyweight', m: 'Chest, triceps',
@@ -141,13 +152,13 @@
       cues: ['Hands down, jump the feet back.', 'Chest to the floor, push up.', 'Feet in, stand, small jump.'] },
     bear_crawl: { n: 'Bear crawl', img: 'Bear_Crawl_Sled_Drags', eq: 'Floor', m: 'Core, shoulders',
       cues: ['Knees hovering an inch off the floor.', 'Opposite hand and foot move together.', 'Back flat, hips low.'] },
-    suitcase_carry: { n: 'Suitcase carry', fig: 'suitcase', eq: 'Dumbbell or kettlebell', m: 'Obliques, grip', side: true,
+    suitcase_carry: { n: 'Suitcase carry', fig: 'suitcase', eq: 'Dumbbell or kettlebell', m: 'Obliques, grip', side: true, neckAlt: 'pallof',
       cues: ['Heavy weight in one hand only.', "Stay perfectly upright; don't lean.", 'Switch hands each length.'] },
     trapbar_jump: { n: 'Trap-bar jump or box jump', img: 'Freehand_Jump_Squat', eq: 'Light trap bar or box', m: 'Power',
       cues: ['Light load, maximum intent.', 'Quarter dip, explode up.', 'Land soft, reset each rep.'] },
     landmine_rot: { n: 'Landmine rotational press', img: 'Landmine_180s', eq: 'Landmine · barbell', m: 'Rotational power', side: true, gate: 'rotation', alt: 'pallof',
       cues: ['Load the back hip, then rotate and press.', 'Pivot the back foot.', 'Only once morning back pain is 0.'] },
-    hanging_leg_raise: { n: 'Hanging leg raise', img: 'Hanging_Leg_Raise', eq: 'Pull-up bar', m: 'Lower abs',
+    hanging_leg_raise: { n: 'Hanging leg raise', img: 'Hanging_Leg_Raise', eq: 'Pull-up bar', m: 'Lower abs', neckAlt: 'rc_hip_lift',
       cues: ['Dead hang, shoulders active.', 'Curl the pelvis up, not just the legs.', 'No swinging.'] },
     goblet_squat: { n: 'Goblet squat', img: 'Goblet_Squat', eq: 'Dumbbell or kettlebell', m: 'Quads, glutes', lower: true,
       cues: ['Weight at the chest.', 'Sit between the heels, chest tall.', 'Drive up.'] },
@@ -191,8 +202,8 @@
       cues: ['Knees hovering an inch off the floor.', 'Tap the opposite shoulder slowly.', 'Hips stay still.'] },
     vacuum: { n: 'Stomach vacuum', img: 'Stomach_Vacuum', eq: 'None', m: 'Transverse abdominis',
       cues: ['Exhale everything.', 'Draw the belly up and in.', 'Hold with small sips of air.'] },
-    hanging_knee_raise: { n: 'Hanging knee raise', img: 'Knee_Hip_Raise_On_Parallel_Bars', eq: "Bar or captain's chair", m: 'Lower abs',
-      cues: ["Use the captain's chair if the neck is above 2.", 'Curl the knees to the chest.', 'Lower slowly.'] },
+    hanging_knee_raise: { n: 'Hanging knee raise', img: 'Knee_Hip_Raise_On_Parallel_Bars', eq: "Bar or captain's chair", m: 'Lower abs', neckAlt: 'rc_hip_lift',
+      cues: ['Curl the pelvis up first; the knees follow.', 'Knees to the chest, no swing.', 'Lower slowly. On a high-neck day the app swaps to the floor version.'] },
     rc_hip_lift: { n: 'Reverse crunch to hip lift', img: 'Reverse_Crunch', eq: 'Floor', m: 'Lower abs',
       cues: ['Curl the knees in, then lift the hips off the floor.', 'Lower slowly.', 'Arms pressing into the floor.'] },
     ab_wheel: { n: 'Ab wheel from knees', img: 'Ab_Roller', eq: 'Ab wheel', m: 'Anti-extension', gate: 'abwheel', alt: 'ball_rollout',
@@ -203,8 +214,14 @@
       cues: ['High to low across the body.', 'Hips stay square.', 'Control the return.'] },
     cable_chop: { n: 'Cable chop', img: 'Standing_Cable_Wood_Chop', eq: 'Cable · rope', m: 'Obliques',
       cues: ['High to low across the body.', 'Hips stay square.', 'Switch sides halfway.'] },
-    suitcase_march: { n: 'Suitcase march, heavy KB', fig: 'suitcase', eq: 'Kettlebell', m: 'Obliques',
+    suitcase_march: { n: 'Suitcase march, heavy KB', fig: 'suitcase', eq: 'Kettlebell', m: 'Obliques', neckAlt: 'side_plank_sw',
       cues: ['Heavy bell in one hand, march in place.', 'Stay perfectly tall.', 'Switch sides at 20 s.'] },
+    thread_needle: { n: 'Side plank thread-the-needle', img: 'Side_Bridge', eq: 'Floor', m: 'Obliques',
+      cues: ['Side plank, reach the top arm under the body and rotate.', 'Open back up and reach to the ceiling.', 'Switch sides halfway.'] },
+    side_plank_sw: { n: 'Side plank, switch halfway', img: 'Side_Bridge', eq: 'Floor', m: 'Obliques',
+      cues: ['Elbow under the shoulder.', 'Straight line head to heels.', 'Switch sides halfway.'] },
+    pallof_sw: { n: 'Pallof press, switch halfway', img: 'Pallof_Press', eq: 'Cable or band', m: 'Anti-rotation core',
+      cues: ['Stand side-on to the cable, handle at the sternum.', 'Press straight out and resist the twist.', 'Switch sides halfway.'] },
     side_plank_dips: { n: 'Side plank hip dips', img: 'Side_Bridge', eq: 'Floor', m: 'Obliques',
       cues: ['Side plank, lower the hip toward the floor.', 'Lift back up past neutral.', 'Switch sides at 20 s.'] },
     bicycle: { n: 'Slow bicycle crunch, hands on chest', img: 'Air_Bike', eq: 'Floor', m: 'Obliques',
@@ -217,9 +234,9 @@
       cues: ['Elbows further forward than normal.', 'Pelvis tucked, glutes on.', 'Hold the line.'] },
     tuck_vsit: { n: 'Tuck V-sit hold', img: 'Seated_Leg_Tucks', eq: 'Floor', m: 'Abs',
       cues: ['Balance on the sit bones.', 'Knees tucked, chest tall.', 'Hold.'] },
-    hlr_straight: { n: 'Straight-leg hanging leg raise', img: 'Hanging_Leg_Raise', eq: 'Pull-up bar', m: 'Lower abs',
-      cues: ['Building toward toes-to-bar.', 'Curl the pelvis up.', 'Lower without swinging.'] },
-    hang_oblique: { n: 'Alternating hanging oblique knee raise', img: 'Knee_Hip_Raise_On_Parallel_Bars', eq: "Bar or captain's chair", m: 'Obliques',
+    hlr_straight: { n: 'Straight-leg hanging leg raise', img: 'Hanging_Leg_Raise', eq: 'Pull-up bar', m: 'Lower abs', gate: 'backgate', alt: 'hanging_knee_raise', neckAlt: 'rc_hip_lift',
+      cues: ['Strict and fresh only: no swing, no kip.', 'Pelvis first, then the legs.', 'Toes-to-bar only once it is strict.'] },
+    hang_oblique: { n: 'Alternating hanging oblique knee raise', img: 'Knee_Hip_Raise_On_Parallel_Bars', eq: "Bar or captain's chair", m: 'Obliques', neckAlt: 'side_plank_dips',
       cues: ['Raise the knees toward one elbow.', 'Alternate sides.', 'Control the descent.'] },
     landmine_rainbow: { n: 'Landmine rainbow', img: 'Landmine_180s', eq: 'Landmine · barbell', m: 'Obliques', gate: 'backgate', alt: 'cable_chop',
       cues: ['Arms long, sweep the bar side to side.', 'Hips and ribs stay square.', 'Back gate: back pain 0 for 3 weeks.'] },
@@ -239,11 +256,11 @@
       cues: ['Hold the bench behind your head.', 'Body straight from shoulders, lower slowly.', 'Back gate: back pain 0 for 3 weeks.'] },
     lying_leg_raise: { n: 'Lying leg raise with hip lift', img: 'Flat_Bench_Lying_Leg_Raise', eq: 'Bench or floor', m: 'Lower abs',
       cues: ['Raise the legs to vertical.', 'Lift the hips off the bench.', 'Lower slowly, back flat.'] },
-    russian_twist: { n: 'Plate Russian twist, feet down', img: 'Russian_Twist', eq: 'Plate', m: 'Obliques',
+    russian_twist: { n: 'Plate Russian twist, feet down', img: 'Russian_Twist', eq: 'Plate', m: 'Obliques', gate: 'backgate', alt: 'pallof_sw',
       cues: ['Feet on the floor.', 'Rotate the ribcage, not just the arms.', 'Slow.'] },
     hollow_rock: { n: 'Hollow rock', fig: 'hollow_rock', eq: 'Floor', m: 'Abs',
       cues: ['Hold the hollow position.', 'Rock gently from shoulders to hips.', 'Low back stays pressed down.'] },
-    weighted_suitcase: { n: 'Heavy suitcase carry', fig: 'suitcase', eq: 'Dumbbell or kettlebell', m: 'Obliques, grip',
+    weighted_suitcase: { n: 'Heavy suitcase carry', fig: 'suitcase', eq: 'Dumbbell or kettlebell', m: 'Obliques, grip', neckAlt: 'side_plank_sw',
       cues: ['Walk tall with one heavy weight.', 'Switch sides at 20 s.', "Don't lean."] },
 
     /* Armor, Rehab Ramp, Deep Core */
@@ -262,6 +279,10 @@
     nerve_slider: { n: 'Median nerve slider', fig: 'nerve_slider', eq: 'None', m: 'Nerve mobility', side: true,
       cues: ['Only if symptom-free today.', 'Arm out, extend the wrist as you tilt the head toward it; reverse.', 'Easy motion. Never more tingling.'] },
     mcgill_big3: { n: 'McGill Big 3', fig: 'curl_up', eq: 'Floor', m: 'Spine-sparing core' },
+    band_er: { n: 'Band external rotation, towel under the arm', img: 'External_Rotation_with_Band', eq: 'Band · rolled towel', m: 'Rotator cuff', side: true,
+      cues: ['Rolled towel between the elbow and the ribs.', 'Rotate the hand out, forearm moving like a door.', 'Slow back in; shoulders down.'] },
+    monster_walk: { n: 'Band monster walk', img: 'Monster_Walk', eq: 'Mini band', m: 'Glute medius', side: true,
+      cues: ['Mini band above the knees, quarter squat.', 'Step wide diagonally, keep tension on the band.', 'Toes forward, hips level.'] },
     hip_switch: { n: '90/90 hip switches', fig: 'hip_switch', eq: 'Floor', m: 'Hip rotation',
       cues: ['Sit with both knees at 90°.', 'Rotate the knees to the other side.', 'Tall spine; use hands if needed.'] },
     rockback: { n: 'Adductor rockback', fig: 'rockback', eq: 'Floor', m: 'Adductors',
@@ -318,25 +339,26 @@
     pull: { title: 'Pull', dur: '60–70 min', ramp: 'pull', core: 'A', hero: 'ng_pullup', items: [
       I('A', 'ng_pullup', 4, '8', 120, { scheme: 'top', topReps: '5–6', topRIR: '1', backPct: 10, note: 'Top set 1 × 5–6 @ RIR 1, then 3 × 8 at −10%. Add weight once 3 × 8 at bodyweight is easy', bw: true }),
       I('B', 'tbar_row', 3, '8–10', 90, { tech: 'Rest-pause last set' }),
-      I('C1', 'cable_row_1arm', 3, '10–12', 0, { side: true }), I('C2', 'face_pull', 3, '15', 60),
-      I('D1', 'straight_arm_pd', 3, '12–15', 0), I('D2', 'prone_yw', 3, '8 each', 45),
-      I('E1', 'ez_curl', 3, '8–12', 0, { tech: 'Myo-reps last set' }), I('E2', 'hammer_curl', 3, '10–12', 45),
-      I('F', 'farmer', 3, '', 60, { dist: '40 m', note: 'Moderate, shoulders packed. Skip if the neck is above 2', neckSkip: 2 }),
+      I('C1', 'cable_row_1arm', 2, '10–12', 0, { side: true }), I('C2', 'face_pull', 2, '15', 60),
+      I('D1', 'straight_arm_pd', 2, '12–15', 0), I('D2', 'prone_yw', 2, '8 each', 45),
+      I('E1', 'ez_curl', 2, '8–12', 0, { tech: 'Myo-reps last set' }), I('E2', 'hammer_curl', 2, '10–12', 45),
+      I('F', 'farmer', 2, '', 60, { dist: '40 m', note: 'Moderate, shoulders packed. Skip if the neck is above 2', neckSkip: 2 }),
     ] },
     legs: { title: 'Legs', dur: '60–70 min', ramp: 'legs', core: 'B', hero: 'trapbar', items: [
       I('A', 'trapbar', 3, '8', 150, { scheme: 'top', topReps: '5', topRIR: '1–2', backPct: 15, note: 'Gated. Top set 1 × 5 @ RIR 1–2, then 2 × 8 at −15%' }),
-      I('B', 'hack_squat', 4, '6–10', 120, { tech: 'Rest-pause last set' }),
-      I('C', 'bulgarian', 3, '8–10', 90, { side: true }),
-      I('D1', 'seated_leg_curl', 3, '10–12', 0, { tech: 'Drop set last set' }), I('D2', 'leg_ext', 3, '12–15', 45),
-      I('E1', 'calf_raise', 4, '8–12', 0), I('E2', 'copenhagen_long', 3, '', 45, { time: 20, timeLabel: '15–25 s', side: true }),
-      I('F', 'deadbug_pullover', 3, '8', 45, { side: true }),
+      I('B', 'hack_squat', 3, '6–10', 120, { tech: 'Rest-pause last set' }),
+      I('C', 'bulgarian', 3, '8–10', 90, { side: true, tech: 'Last set to failure' }),
+      I('D1', 'seated_leg_curl', 2, '10–12', 0, { tech: 'Drop set last set' }), I('D2', 'leg_ext', 2, '12–15', 45),
+      I('E1', 'calf_raise', 3, '8–12', 0), I('E2', 'copenhagen_long', 2, '', 45, { time: 20, timeLabel: '15–25 s', side: true }),
+      I('F', 'reverse_hyper', 3, '12–15', 60, { note: 'Only if morning back pain is 0–2; otherwise the app swaps to a glute bridge' }),
+      I('G', 'nordic', 2, '4–6', 90, { note: '5-s lowering, catch with your hands' }),
     ] },
     push: { title: 'Push', dur: '60–70 min', ramp: 'push', core: 'C', hero: 'bench', items: [
-      I('A', 'bench', 4, '10', 120, { scheme: 'top', topReps: '6–8', topRIR: '1', backPct: 10, note: 'Top set 1 × 6–8 @ RIR 1, then 3 × 10 at −10%. Minimal arch' }),
+      I('A', 'bench', 4, '10', 120, { scheme: 'top', topReps: '6–8', topRIR: '1', backPct: 10, note: 'Top set 1 × 6–8 @ RIR 1, then 3 × 10 at −10%. Minimal arch. Barbell only when the neck is 0–1.' }),
       I('B', 'landmine_press', 3, '8–10', 90, { side: true, fromWeek: { 5: 'hk_db_press' }, note: 'Week 5+: half-kneeling 1-arm DB press if the overhead gate is open' }),
-      I('C1', 'incline_db', 3, '10–12', 0), I('C2', 'cable_lateral', 3, '12–15', 60),
-      I('D1', 'hl_cable_fly', 3, '12–15', 0, { tech: 'Mechanical drop last set' }), I('D2', 'pushup_plus', 2, '12', 45),
-      I('E1', 'rope_pushdown', 3, '12–15', 0, { tech: 'Drop set last set' }), I('E2', 'xbody_tri', 3, '12–15', 45, { tech: 'Drop set last set' }),
+      I('C1', 'incline_db', 3, '10–12', 0), I('C2', 'cable_lateral', 2, '12–15', 60),
+      I('D1', 'hl_cable_fly', 2, '12–15', 0, { tech: 'Mechanical drop last set' }), I('D2', 'pushup_plus', 2, '12', 45),
+      I('E1', 'rope_pushdown', 2, '12–15', 0, { tech: 'Drop set last set' }), I('E2', 'xbody_tri', 2, '12–15', 45, { tech: 'Drop set last set' }),
     ] },
   };
 
@@ -344,24 +366,26 @@
     pull: { title: 'Pull', dur: '60–70 min', ramp: 'pull', core: 'A', hero: 'w_pullup', items: [
       I('A', 'w_pullup', 5, '3+2', 120, { tech: 'Cluster: 15 s between mini-sets', note: 'At ~5RM' }),
       I('B', 'pendlay', 4, '6–8', 90),
-      I('C1', 'cable_row_1arm', 3, '12', 0, { side: true }), I('C2', 'face_pull', 3, '15', 0), I('C3', 'rear_delt_fly', 3, '15', 60),
-      I('D1', 'ez_21s', 2, '21', 0, { note: '7 bottom half, 7 top half, 7 full' }), I('D2', 'hammer_curl', 1, '12–15 + 4×3–5', 60, { tech: 'Myo-reps' }),
+      I('C1', 'cable_row_1arm', 2, '12', 0, { side: true }), I('C2', 'face_pull', 2, '15', 0), I('C3', 'rear_delt_fly', 2, '15', 60),
+      I('D1', 'ez_21s', 2, '21', 0, { note: '7 bottom half, 7 top half, 7 full' }), I('D2', 'hammer_curl', 1, '12–15 + 4×3–5', 60, { tech: 'Myo-reps', fromWeek: { 11: 'xbody_hammer' } }),
       I('E', 'row_erg', 1, '', 0, { kind: 'emom', minutes: 6, odd: { ex: 'row_erg', label: '12 cal row' }, even: { ex: 'inverted_row', label: '8 inverted rows' } }),
     ] },
     legs: { title: 'Legs', dur: '60–70 min', ramp: 'legs', core: 'B', hero: 'trapbar', items: [
       I('A', 'trapbar', 3, '6', 150, { scheme: 'top', topReps: '3–5', topRIR: '1', backPct: 12, note: 'Top set 1 × 3–5 @ RIR 1, then 2 × 6 at −12%' }),
-      I('B', 'hack_squat', 4, '8–10', 90, { tech: 'Rest-pause last set' }),
+      I('B', 'hack_squat', 3, '8–10', 90, { tech: 'Rest-pause last set' }),
       I('C', 'walking_lunge', 3, '10', 90, { side: true }),
-      I('D1', 'leg_ext', 3, '15', 0), I('D2', 'seated_leg_curl', 3, '12', 0), I('D3', 'hip_thrust', 3, '12', 45),
-      I('E1', 'calf_raise', 4, '10–12', 0, { tech: 'Double drop last set' }), I('E2', 'copenhagen_long', 3, '', 45, { time: 25, timeLabel: '20–30 s', side: true }),
-      I('F', 'air_bike', 1, '', 0, { kind: 'interval', rounds: 6, work: 15, restI: 45, optional: true, label: '6 × (15 s all-out / 45 s easy)' }),
+      I('D1', 'leg_ext', 2, '15', 0), I('D2', 'seated_leg_curl', 2, '12', 0), I('D3', 'hip_thrust', 2, '12', 45),
+      I('E1', 'calf_raise', 3, '10–12', 0, { tech: 'Double drop last set' }), I('E2', 'copenhagen_long', 2, '', 45, { time: 25, timeLabel: '20–30 s', side: true }),
+      I('F', 'reverse_hyper', 3, '12–15', 60, { note: 'Only if morning back pain is 0–2; otherwise the app swaps to a glute bridge' }),
+      I('G', 'nordic', 2, '4–6', 90, { note: '5-s lowering, catch with your hands' }),
+      I('H', 'air_bike', 1, '', 0, { kind: 'interval', rounds: 6, work: 15, restI: 45, optional: true, label: '6 × (15 s all-out / 45 s easy)' }),
     ] },
     push: { title: 'Push', dur: '60–70 min', ramp: 'push', core: 'C', hero: 'bench', items: [
       I('A', 'bench', 3, '8', 120, { scheme: 'top', topReps: '4–6', topRIR: '1', backPct: 10, note: 'Top set 1 × 4–6 @ RIR 1, then 2 × 8 at −10%' }),
       I('B', 'seated_db_press', 3, '8–10', 90, { note: 'If the neck has been quiet 3+ weeks; otherwise landmine press' }),
-      I('C', 'incline_db', 3, '10', 90, { tech: '2 straight sets, then 1 myo-rep set' }),
-      I('D1', 'cable_fly', 3, '15', 0), I('D2', 'cable_lateral', 3, '12–15', 0), I('D3', 'pushup_plus', 3, '12', 45),
-      I('E1', 'rope_pushdown', 3, '12–15', 0, { tech: 'Drop set last set' }), I('E2', 'xbody_tri', 3, '12–15', 45),
+      I('C', 'incline_db', 3, '10', 90, { tech: '2 straight sets, then 1 myo-rep set', fromWeek: { 11: 'incline_cable_press' } }),
+      I('D1', 'cable_fly', 2, '15', 0), I('D2', 'cable_lateral', 2, '12–15', 0, { fromWeek: { 11: 'leanaway_lateral' } }), I('D3', 'pushup_plus', 2, '12', 45),
+      I('E1', 'rope_pushdown', 2, '12–15', 0, { tech: 'Drop set last set' }), I('E2', 'xbody_tri', 2, '12–15', 45),
       I('F', 'pushup_ladder', 1, '', 0, { kind: 'ladder', minutes: 5, label: '1 → 10 → 1, 5-min cap' }),
     ] },
   };
@@ -390,6 +414,12 @@
     ] },
   };
 
+  MIN.regen = { title: 'Regeneration + Pump', dur: '20 min', ramp: null, core: null, hero: 'face_pull', type: 'lift', regen: true, items: [
+    I('A1', 'face_pull', 2, '15–20', 0, { note: 'RIR 1–2, cables only, no neck loading' }), I('A2', 'cable_lateral', 2, '15–20', 45),
+    I('B1', 'rear_delt_fly', 2, '15–20', 0), I('B2', 'ez_curl', 2, '15–20', 0), I('B3', 'rope_pushdown', 2, '15–20', 45),
+    I('C1', 'monster_walk', 2, '12', 0, { side: true }), I('C2', 'side_plank_leg', 2, '', 45, { time: 20, side: true }),
+  ] };
+
   /* Peak pump finisher (Weeks 11–12, after Pull and Push) */
   const PUMP = {
     pull: [I('P1', 'ez_curl', 4, '15', 0), I('P2', 'rear_delt_fly', 4, '15', 30)],
@@ -399,7 +429,7 @@
   /* ---------------------------------------------------------- Rugby Day + cardio */
   const RUGBY = {
     1: { title: 'Rugby Day', sub: 'Engine rebuild', dur: '45–50 min', hero: 'sled_push',
-      warmup: 'Easy bike 4 min, leg swings, A-march, skips, lateral shuffles (8 min).',
+      warmup: 'Easy bike 4 min, leg swings, A-march, skips, lateral shuffles, band pull-aparts 2 × 15 (8 min).',
       blocks: [
         { name: 'Intervals', kind: 'interval', ex: 'air_bike', rounds: 10, work: 20, restI: 40, label: 'Air bike 10 × (20 s hard at RPE 8 / 40 s easy)' },
         { name: 'Circuit × 3', kind: 'circuit', rounds: 3, rest: 90, items: [
@@ -408,7 +438,7 @@
         { name: 'Strides', kind: 'sprints', ex: 'strides', reps: 4, dist: '60 m', pct: '70%', rest: 60, weeks: [2], label: '4 × 60 m at 70%, walk back' },
       ], cooldown: '5 min walk.' },
     2: { title: 'Rugby Day', sub: 'Speed, power, engine', dur: '45–50 min', hero: 'sled_push',
-      warmup: 'Jog, A-skips, B-skips, leg swings, lateral shuffles, 2 build-up runs (10 min).',
+      warmup: 'Jog, A-skips, B-skips, leg swings, lateral shuffles, 2 build-up runs, band pull-aparts 2 × 15 (10 min).',
       blocks: [
         { name: 'Speed', kind: 'sprints', ex: 'sprint', byWeek: { 3: [6, '60 m', '85%', 90], 4: [6, '60 m', '90%', 90], 5: [6, '40 m', '95%', 120], 6: [4, '40 m', '90%', 90] }, label: 'Walk back (2 min at 95%)' },
         { name: 'Power (contrast)', kind: 'circuit', rounds: 3, rest: 60, items: [{ ex: 'mb_chest_pass', label: '× 5' }, { ex: 'box_jump', label: '× 3' }] },
@@ -418,13 +448,13 @@
         { name: 'Core', kind: 'sets', items: [{ ex: 'pallof', label: '2 × 10 per side', sets: 2 }] },
       ], cooldown: '5 min walk.' },
     3: { title: 'Rugby Day', sub: 'Full send', dur: '50 min', hero: 'sled_push',
-      warmup: 'Jog, A-skips, B-skips, leg swings, lateral shuffles, 2 build-up runs (10 min).',
+      warmup: 'Jog, A-skips, B-skips, leg swings, lateral shuffles, 2 build-up runs, band pull-aparts 2 × 15 (10 min).',
       blocks: [
         { name: 'Speed', kind: 'sprints', ex: 'sprint', reps: 7, dist: '40 m', pct: '95–100%', rest: 150, label: '6–8 × 40 m, 2–3 min rest' },
         { name: 'Power', kind: 'circuit', rounds: 4, rest: 90, items: [{ ex: 'trapbar_jump', label: '× 3' }, { ex: 'landmine_rot', label: '× 6 per side (3 rounds, gated)' }] },
         { name: 'The Gauntlet', kind: 'amrap', minutes: 15, items: [
           { ex: 'sled_push', label: '20 m' }, { ex: 'kb_swing', label: '× 15' }, { ex: 'burpee', label: '× 8' },
-          { ex: 'suitcase_carry', label: '20 m per side' }, { ex: 'hanging_leg_raise', label: '× 8' }], label: '15-min AMRAP. Log your rounds.', benchmark: 'gauntlet' },
+          { ex: 'suitcase_carry', label: '20 m per side' }, { ex: 'hanging_knee_raise', label: '× 8, pelvis first, no swing' }], label: '15-min AMRAP. Log your rounds.', benchmark: 'gauntlet' },
       ], cooldown: '5 min walk.' },
   };
 
@@ -452,28 +482,29 @@
 
   /* ------------------------------------------------------------- core finishers */
   const CORE = {
-    1: { A: ['reverse_crunch', 'dead_bug', 'heel_taps', 'plank_ppt', 'hollow_tuck'],
-         B: ['side_plank_l', 'side_plank_r', 'hk_pallof_l', 'hk_pallof_r', 'bird_dog'],
-         C: ['mcgill_curlup', 'ball_rollout', 'glute_bridge_march', 'bear_taps', 'vacuum'] },
-    2: { A: ['hanging_knee_raise', 'rc_hip_lift', 'ab_wheel', 'deadbug_pullover', 'hollow_ext'],
-         B: ['cable_chop_l', 'cable_chop_r', 'suitcase_march', 'side_plank_dips', 'bicycle'],
-         C: ['rope_crunch', 'plate_crunch', 'long_plank', 'tuck_vsit', 'vacuum'] },
-    3: { A: ['hlr_straight', 'hang_oblique', 'ab_wheel', 'dragon_flag', 'hollow_rock'],
-         B: ['landmine_rainbow', 'cable_lift', 'side_plank_leg', 'russian_twist', 'weighted_suitcase'],
-         C: ['weighted_rope_crunch', 'vup', 'stir_pot', 'long_plank', 'vacuum'] },
+    1: { A: ['reverse_crunch', 'side_plank_sw', 'plank_ppt', 'mcgill_curlup', 'hollow_tuck'],
+         B: ['heel_taps', 'pallof_sw', 'bear_taps', 'mcgill_curlup', 'vacuum'],
+         C: ['dead_bug', 'side_plank_sw', 'ball_rollout', 'mcgill_curlup', 'hollow_tuck'] },
+    2: { A: ['hanging_knee_raise', 'cable_chop', 'ab_wheel', 'rope_crunch', 'hollow_ext'],
+         B: ['rc_hip_lift', 'suitcase_march', 'long_plank', 'plate_crunch', 'vacuum'],
+         C: ['deadbug_pullover', 'thread_needle', 'bear_taps', 'rope_crunch', 'tuck_vsit'] },
+    3: { A: ['hlr_straight', 'landmine_rainbow', 'ab_wheel', 'weighted_rope_crunch', 'hollow_rock'],
+         B: ['dragon_flag', 'cable_lift', 'stir_pot', 'vup', 'weighted_suitcase'],
+         C: ['hang_oblique', 'russian_twist', 'long_plank', 'plate_crunch', 'vacuum'] },
   };
-  const CORE_NAMES = { A: 'Core A · lower abs + anti-extension', B: 'Core B · obliques + anti-rotation', C: 'Core C · upper abs + deep' };
+  const CORE_NAMES = { A: 'Core A · Six Pack Progression', B: 'Core B · Six Pack Progression', C: 'Core C · Six Pack Progression' };
   /* week → [work, rest, rounds, toFailure] */
   const CORE_FMT = { 1: [30, 15, 1], 2: [30, 15, 2], 3: [40, 20, 2], 4: [40, 20, 2], 5: [40, 20, 2], 6: [40, 20, 1], 7: [45, 15, 2], 8: [45, 15, 2], 9: [45, 15, 2], 10: [45, 15, 1], 11: [50, 10, 2, true], 12: [50, 10, 2, true], 13: [40, 20, 1] };
 
   /* ------------------------------------------------------------------ routines */
   const R = (ex, dose, more) => Object.assign({ ex, dose }, more || {});
   const ROUTINES = {
-    armor: { title: 'Daily Armor', sub: 'Neck, back and groin insurance', min: 10, hero: 'doorway_pec', steps: [
+    armor: { title: 'Daily Armor', sub: 'Neck, back and groin insurance', min: 12, hero: 'doorway_pec', steps: [
       R('breath_9090', '5 breaths · 5 s in, 7 s out', { breaths: 5, inS: 5, outS: 7 }),
       R('chin_tuck', '10 × 5 s', { holds: 10, hold: 5 }),
       R('doorway_pec', '2 × 30 s per side', { time: 30, sets: 2, side: true }),
       R('wall_slide', '10 reps', { reps: 10 }),
+      R('band_face_pull', '2 × 15', { reps: 15, sets: 2 }),
       R('open_book', '6 per side', { reps: 6, side: true }),
       R('nerve_slider', '10 slow reps per side, only if symptom-free', { reps: 10, side: true, optional: true }),
       R('mcgill_curlup', 'Curl-up 5 × 8 s', { holds: 5, hold: 8, big3: true }),
@@ -507,8 +538,8 @@
     R('bridge_squeeze', '1 × 12', { reps: 12 }),
   ];
   ROUTINES.ramp_pull.steps = RAMP_BASE.concat([R('scap_pullup', 'Scap pull-ups × 8', { reps: 8 })]);
-  ROUTINES.ramp_push.steps = RAMP_BASE.concat([R('pushup_plus', 'Push-up plus × 10', { reps: 10 })]);
-  ROUTINES.ramp_legs.steps = RAMP_BASE.concat([R('hip_airplane', 'Hip airplanes 5 per side', { reps: 5, side: true }), R('copenhagen_short', 'Copenhagen short lever 2 × 10 s', { time: 10, sets: 2, side: true })]);
+  ROUTINES.ramp_push.steps = RAMP_BASE.concat([R('band_er', '2 × 15 per side', { reps: 15, sets: 2, side: true }), R('pushup_plus', 'Push-up plus × 10', { reps: 10 })]);
+  ROUTINES.ramp_legs.steps = RAMP_BASE.concat([R('hip_airplane', 'Hip airplanes 5 per side', { reps: 5, side: true }), R('copenhagen_short', 'Copenhagen short lever 2 × 10 s', { time: 10, sets: 2, side: true }), R('monster_walk', '2 × 12 steps per side', { reps: 12, sets: 2, side: true })]);
 
   /* ---------------------------------------------------------------- calendar */
   const PHASES = [
@@ -521,15 +552,15 @@
   const WEEKS = {
     1: { focus: 'RIR 3, ~65% volume, baseline tests', rir: '3' },
     2: { focus: 'RIR 2, strides return', rir: '2', event: 'Halloween Sat' },
-    3: { focus: 'Top sets, sprints @ 85%', rir: '1–2' },
+    3: { focus: 'Top sets, sprints @ 85%, isolation to failure', rir: '1–2' },
     4: { focus: 'Sprints @ 90%', rir: '1–2' },
     5: { focus: 'Overhead-press gate check, sprints @ 95%', rir: '1–2' },
     6: { focus: 'Pivot deload: ~60% of sets, same loads, retest Sat', rir: '3', event: 'Thanksgiving Thu Nov 26', label: 'Pivot' },
-    7: { focus: 'New exercises, clusters, myo-reps', rir: '1' },
+    7: { focus: 'New exercises, clusters, myo-reps, 3-s lowering', rir: '1' },
     8: { focus: 'Density up', rir: '1', event: 'Holiday parties start' },
     9: { focus: 'Hardest week of the block', rir: '1' },
     10: { focus: 'Holiday Express: ⅔ of sets, same intensity, ~40 min', rir: '1', event: 'Christmas Fri Dec 25', label: 'Holiday Express' },
-    11: { focus: 'Peak modifiers', rir: '1', event: "New Year's Eve Thu Dec 31" },
+    11: { focus: 'Peak modifiers, accessory swaps', rir: '1', event: "New Year's Eve Thu Dec 31" },
     12: { focus: 'Final retest Jan 4–9', rir: '1' },
     13: { focus: 'Pump sessions, walks, travel prep', rir: '2', event: 'Fly Fri Jan 15', label: 'Taper' },
   };
@@ -563,6 +594,9 @@
     { id: 'scotch', n: 'Scotch, 1.5 oz', kcal: 100 }, { id: 'lager', n: 'Light lager, 12 oz', kcal: 100 },
     { id: 'red', n: 'Dry red, 5 oz', kcal: 125 }, { id: 'ipa', n: 'Lager or IPA, 12 oz', kcal: 215 },
   ];
+  const DRINK_BUDGET = { normal: 6, holiday: 10, holidayWeeks: [6, 8, 9, 10, 11], night: 4 };
+  const FREE_MEALS = { normal: 2, peak: 1, peakWeeks: [11, 12] };
+  const PROTEIN = { early: [200, 220], late: [220, 230], lateFrom: 7 };
   const SUPPS = [
     { id: 'creatine', n: 'Creatine 5 g', d: 'Every day, rest days included' },
     { id: 'vitd', n: 'Vitamin D3 1,000–2,000 IU', d: 'November to January', months: [11, 12, 1] },
@@ -574,7 +608,16 @@
     { id: 'lunch', n: 'Lunch' }, { id: 'dinner', n: 'Dinner' }, { id: 'snack', n: 'Evening snack' },
   ];
   const GUIDES = [
+    { id: 'jeff', t: "Jeff's rules", tone: 'plate', body: [
+      'Nutrition is the base of the Six Pack Pyramid: you cannot out-train a bad diet.',
+      'Moderate deficit: lose 0.5–1% of body weight a week, no more.',
+      'Track liquid calories, sauces and oils. They add up fast.',
+      'Machine calorie counts run 13–40% high, so never eat back cardio calories.',
+      'No fat burners, no detox teas.',
+      'Protein: 200–220 g a day through Week 6, 220–230 g from Week 7 (about 1.1 g per lb).',
+      'Plate: 40% protein, 40% fibrous carbs, 20% starchy carbs.'] },
     { id: 'plate', t: 'The Sri Lankan plate', tone: 'curry', body: [
+      "Jeff's 40/40/20 (protein / fibrous carbs / starchy carbs) on this plate: chicken is the 40, mallung and vegetables the other 40, rice and dhal the 20.",
       'Half the plate vegetables or mallung, a quarter or more chicken (6–8 oz), a quarter rice and dhal.',
       'The hidden calories are coconut milk and tempering oil. Use light coconut milk or half milk, and measure the oil: 1 tsp per serving.',
       '1–1.5 cups of cooked rice. Dhal counts as carbs more than protein.'] },
@@ -588,12 +631,13 @@
       'Parties: eat a protein snack before you go; hold a soda water between drinks.'] },
     { id: 'drinks', t: 'Drinks on weekends', tone: 'drink', body: [
       'Best picks are ~100 kcal: 1.5 oz scotch, 12 oz light lager. Dry red ~125. Fuller lagers and IPAs 180–250.',
+      'Weekly budget: 6 drinks in a normal week, up to 10 in holiday weeks (Weeks 6 and 8–11). Jeff\'s lean-down number is 3–4 a week.',
       'Cap 3–4 drinks a night and alternate each one with water.',
       'Protein-forward meals on drinking days, lighter on carbs and fat.',
       'Last drink about 3 h before bed.',
-      'No drinks on Thursday night: Friday is Rugby Day.'] },
+      "No drinks on Thursday night (Friday is Rugby Day), except New Year's Eve."] },
     { id: 'free', t: 'Free meals', tone: 'free', body: [
-      'Two a week, at lunch.', 'Anchor with 40+ g of protein, then eat what you want.',
+      'Two a week at lunch through Week 10; one a week in Weeks 11–12 (Peak). Big holiday days don\'t count.', 'Anchor with 40+ g of protein, then eat what you want.',
       'Budget about 1,200–1,500 kcal, one sitting, no grazing after.', 'The next meal is normal. No skipping meals to make up for it.'] },
     { id: 'calib', t: 'Calibration rule', tone: 'plate', body: [
       'Every Sunday, compare 7-day average weight with last week.',
@@ -604,7 +648,7 @@
     { id: 'supps', t: 'Supplements', tone: 'shake', body: [
       'Creatine 5 g daily. Whey as you have it.', 'Vitamin D3 1,000–2,000 IU November–January.',
       'Optional: fish oil 1–2 g EPA+DHA; magnesium glycinate 200–400 mg in the evening if sleep is poor.',
-      'Caffeine 200–300 mg before training, none after 2 pm.'] },
+      'Caffeine 150–200 mg before training (Jeff: 100–200), none after 2 pm.'] },
     { id: 'taper', t: 'Taper food, Jan 12–14', tone: 'curry', body: [
       'Add about 150 g of carbs a day (rice, fruit), bringing you near maintenance.',
       'Keep salt and water normal. No water cutting before a ~20-hour journey.'] },
@@ -707,7 +751,7 @@
   ];
 
   window.FS = { EX, P1, P2, P3, MIN, PUMP, RUGBY, TURKEY, SAT, CORE, CORE_NAMES, CORE_FMT, ROUTINES, PHASES, WEEKS,
-    FOODS, DRINKS, SUPPS, SLOTS, GUIDES, MIND, MIND_CATS, MIND_TIPS, RESEARCH, PSS10, GAD7,
+    FOODS, DRINKS, DRINK_BUDGET, FREE_MEALS, PROTEIN, SUPPS, SLOTS, GUIDES, MIND, MIND_CATS, MIND_TIPS, RESEARCH, PSS10, GAD7,
     TARGET_PATH, BENCHMARKS, SUNDAY_RESET, GATES, RED_FLAGS, SWAPPED, TECHNIQUES,
     START: '2026-10-19', GOAL: { from: 207.5, to: [192, 195], date: '2027-01-14' } };
 })();

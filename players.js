@@ -87,7 +87,7 @@ function lPlayer(p) {
     '<span class="lab chip train" style="background:rgba(11,12,14,.7)">' + esc(it.k) + (ss ? ' · ' + (g.items.length === 2 ? 'Superset' : 'Tri-set') : '') + '</span><button class="info icon-btn glass" data-a="exInfo" data-v="' + it.ex + '" data-k="' + it.k + '" data-s="' + p.sid + '" aria-label="How to">' + ic('info') + '</button></div>';
   h += '<div class="pbody pad">';
   h += '<div class="eyebrow" style="color:var(--train)">' + esc(setLabel) + (restTxt ? ' · <span class="muted">' + esc(restTxt) + '</span>' : '') + '</div><h1 class="ptitle" style="margin-top:6px">' + esc(e.n) + '</h1>';
-  h += '<div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><span class="chip">' + esc(reps) + '</span>' + (it.tech ? '<span class="chip train">' + esc(it.tech) + '</span>' : '') + (it.gated ? '<span class="chip warn">' + ic('lock').replace('<svg', '<svg width="11" height="11"') + ' ' + esc(EX[it.gated.from].n) + ' gated</span>' : '') + '</div>';
+  h += '<div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><span class="chip">' + esc(reps) + '</span>' + (it.tech ? '<span class="chip train">' + esc(it.tech) + '</span>' : '') + (it.gated ? '<span class="chip warn">' + ic('lock').replace('<svg', '<svg width="11" height="11"') + ' ' + esc(gateTxt(it.gated)) + '</span>' : '') + '</div>';
   if (it.note) h += '<p class="small fg2" style="margin:8px 0 0">' + esc(it.note) + '</p>';
   if (st.special) {
     h += '<div class="card" style="margin-top:14px"><div class="small fg2">' + esc(rxText(it)) + '</div><button class="btn train block" style="margin-top:12px" data-a="specialTimer">' + ic('timer').replace('<svg', '<svg width="20" height="20"') + ' Start timer</button>' + (it.optional ? '<p class="xs muted" style="margin:8px 0 0">Optional today.</p>' : '') + '</div>';
@@ -353,7 +353,7 @@ TICKS.routine = (p) => {
 function openTimer(date, cfg) { push('timer', { date, cfg, state: 'ready', t0: 0, paused: 0, pauseAt: 0, rounds: 0, rep: 0, rung: 0, ri: 0 }); }
 function openCore(letter, wOverride) {
   const date = topDate(), w = wOverride || clamp(weekOf(date), 1, 13), cp = w <= 2 ? 1 : w <= 6 ? 2 : 3;
-  const f = D.CORE_FMT[w], list = D.CORE[cp][letter].map((ex) => { const g = EX[ex].gate && !gateOpen(EX[ex].gate, date); return g ? EX[ex].alt : ex; });
+  const f = D.CORE_FMT[w], list = D.CORE[cp][letter].map((ex) => dayEx(ex, date).ex);
   const segs = [];
   for (let r = 0; r < f[2]; r++) list.forEach((ex, i) => {
     const lastAll = r === f[2] - 1 && i === list.length - 1;
@@ -362,16 +362,17 @@ function openCore(letter, wOverride) {
   });
   openTimer(date, { title: D.CORE_NAMES[letter], segs, doneKey: 'core', note: 'Ribs down, exhale hard. If form breaks, switch to the easier version and finish the interval.' });
 }
+const dxi = (items, date) => items.map((x) => Object.assign({}, x, { ex: dayEx(x.ex, date).ex }));
 function openBlock(date, sid, i) {
   const s = findSession(date, sid), b = s.src.blocks[i], w = weekOf(date), key = 'b:' + sid + ':' + i;
   if (b.kind === 'interval') {
     const segs = [];
     for (let r = 0; r < b.rounds; r++) { segs.push({ kind: 'work', dur: b.work, ex: b.ex, label: 'Hard · RPE 8' }); if (r < b.rounds - 1) segs.push({ kind: 'rest', dur: b.restI, ex: b.ex, label: 'Easy' }); }
     openTimer(date, { title: b.label, segs, doneKey: key });
-  } else if (b.kind === 'circuit') openTimer(date, { title: b.name, mode: 'circuit', items: b.items, rounds: b.rounds, rest: b.rest, doneKey: key });
+  } else if (b.kind === 'circuit') openTimer(date, { title: b.name, mode: 'circuit', items: dxi(b.items, date), rounds: b.rounds, rest: b.rest, doneKey: key });
   else if (b.kind === 'sprints') { const c = sprintCfg(b, w); openTimer(date, { title: b.name + ' · ' + c.reps + ' × ' + c.dist + ' at ' + c.pct, mode: 'sprints', ex: b.ex, reps: c.reps, rest: c.rest, doneKey: key }); }
-  else if (b.kind === 'amrap') openTimer(date, { title: b.name, mode: 'amrap', items: b.items, total: b.minutes * 60, doneKey: key, roundsKey: sid + ':' + i, bench: b.benchmark });
-  else if (b.kind === 'sets') openTimer(date, { title: b.name, mode: 'circuit', items: b.items, rounds: 2, rest: 45, doneKey: key });
+  else if (b.kind === 'amrap') openTimer(date, { title: b.name, mode: 'amrap', items: dxi(b.items, date), total: b.minutes * 60, doneKey: key, roundsKey: sid + ':' + i, bench: b.benchmark });
+  else if (b.kind === 'sets') openTimer(date, { title: b.name, mode: 'circuit', items: dxi(b.items, date), rounds: 2, rest: 45, doneKey: key });
 }
 function openCardio(date, sid) {
   const s = findSession(date, sid), c = s.cardio || {};
