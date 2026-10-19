@@ -610,7 +610,7 @@ const WEEK_N = 13;
 /* [key, name, unit ('wt' = weight unit), good direction (+1 higher / -1 lower / 0 neutral), decimals, colour] */
 const WK_MET = [
   ['weight', 'Weight', 'wt', -1, 1, 'var(--train)'], ['sess', 'Sessions', '', 1, 0, 'var(--train)'],
-  ['wkN', 'Health workouts', '', 1, 0, 'var(--train)'], ['wkMin', 'Workout minutes', ' min', 1, 0, 'var(--train)'],
+  ['wkN', 'Health workouts', '', 1, 0, 'var(--train)'], ['wkMin', 'Workout time (elapsed)', ' min', 1, 0, 'var(--train)'],
   ['exmin', 'Exercise / day', ' min', 1, 0, 'var(--train)'], ['kcalAct', 'Active energy / day', ' kcal', 1, 0, 'var(--fuel)'],
   ['steps', 'Steps / day', '', 1, 0, 'var(--train)'], ['sleep', 'Sleep / night', ' h', 1, 1, 'var(--mind)'],
   ['hrv', 'HRV', ' ms', 1, 0, 'var(--mind)'], ['rhr', 'Resting HR', ' bpm', -1, 0, 'var(--fuel)'],
@@ -637,7 +637,7 @@ function weekCompute(w) {
     const sc = (d.meals || []).map((m) => m.ai && m.ai.score).filter((x) => x != null); if (sc.length) put('aiScore', sc.reduce((a, b) => a + b, 0) / sc.length);
     ['steps', 'exmin', 'hrv', 'rhr', 'whr', 'resp', 'spo2'].forEach((k) => put(k, h[k]));
     put('kcalAct', h.kcal); put('sleep', sleepH(dd)); if (h.vo2 != null) vo2 = h.vo2;
-    (h.wk || []).forEach((x) => { wkN++; wkMin += x.min || 0; });
+    (h.wk || []).forEach((x) => { wkN++; wkMin += hkWk(x).span || 0; }); // elapsed minutes (start to end), the one basis every workout has
     if (hkOf(dd) && (sleepH(dd) != null || h.hrv != null)) put('rec', recovery(dd).score);
     const ch = d.chk || {}; ['neck', 'back', 'stress'].forEach((k) => put(k, ch[k]));
     (d.mind || []).forEach((x) => { mind += x.min || 0; hasMind = true; });

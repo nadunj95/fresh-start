@@ -1,15 +1,47 @@
 /* Apple Health bridge + recovery model.
-   The iOS Shortcut "Fresh Start Sync" writes recent Health samples as text lines
-   (Type|Start|End|Value|Unit) into a secret GitHub gist, which the app reads whenever it opens
-   (automatic sync, below); the same text can also be pasted, and Health Auto Export JSON works too. Each import is boiled down to one
-   summary per day in S.days[date].hk, which saves and syncs like every other log. recovery() turns
-   sleep, HRV, resting heart rate and training load into today's push level, and readiness() in
-   core.js combines it with the neck/back check-in. */
+   Normal route: the Fresh Start shortcuts upload to the Health Sync API and hk-sync.js downloads it. Emergency
+   route: pasted text (Type|Start|End|Value|Unit lines), a file, or Health Auto Export JSON, read by hkParse here.
+   Both routes are boiled down to one summary per day in S.days[date].hk with the SAME calculations (hkSleepNight,
+   hkMkWorkout, hkKcal / hkMinutes / hkSpo2 / hkWeight below), which saves and syncs like every other log.
+   recovery() turns sleep, HRV, resting heart rate and training load into today's push level, and
+   readiness() in core.js combines it with the neck/back check-in. The old GitHub-gist code stays inert. */
 'use strict';
 
 const HK_SHIFT = 6 * 3600000; // sleep and HRV belong to the morning they end on (an 18:00 → 18:00 day)
 const MON3 = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const KG_LB = 2.20462;
+const HK_CUT = 18; // a night belongs to the date you wake on; nights run 18:00 → 18:00 on the wall clock
+/* the date key a sample belongs to when it is a sleep-night sample: wall-clock 18:00 cutoff, so midnight and DST
+   changes (23- and 25-hour days) can't move a night to the wrong date */
+function hkNight(t) {
+  const d = new Date(t instanceof Date ? t.getTime() : t);
+  return d.getHours() >= HK_CUT ? addDays(iso(d), 1) : iso(d);
+}
+
+/* ------------------------------------------------------------------ units (explicit, never guessed from size where a unit is given) */
+function hkKcal(v, unit) { // → kcal
+  const u = String(unit || '').trim();
+  if (/^(kj|kilojoules?)$/i.test(u)) return v / 4.184;
+  if (/^(j|joules?)$/i.test(u)) return v / 4184;
+  return v; // kcal, Cal, kilocalories
+}
+function hkMinutes(v, unit) { // → minutes
+  const u = String(unit || '').trim().toLowerCase();
+  if (/^(s|sec|secs|second|seconds)$/.test(u)) return v / 60;
+  if (/^(h|hr|hrs|hour|hours)$/.test(u)) return v * 60;
+  return v; // min, minutes, blank
+}
+function hkSpo2(v, unit) { // → percent 0–100 (a 0–1 fraction is multiplied up; an explicit % is kept as is)
+  if (/%|percent/i.test(String(unit || ''))) return v;
+  return v <= 1.5 ? v * 100 : v;
+}
+function hkWeight(v, unit, to) { // → the app's unit ('lb' | 'kg')
+  const u = String(unit || '');
+  if (/kg|kilo/i.test(u)) return to === 'lb' ? v * KG_LB : v;
+  if (/lb|pound/i.test(u)) return to === 'kg' ? v / KG_LB : v;
+  return v;
+}
+function hkHrvMs(v, unit) { return /^(s|sec)/i.test(String(unit || '').trim()) ? v * 1000 : v; }
 
 /* ------------------------------------------------------------------ parsing */
 function hkDate(v) {
@@ -72,16 +104,17 @@ function hkKind(t) {
   if (/workout/.test(t)) return 'workout';
   return null;
 }
-function hkStage(v) {
+function hkStage(v, strict) { // strict (the API path): an unknown stage word is dropped (null), never counted as sleep
   v = String(v || '').toLowerCase();
   if (/awake/.test(v)) return 'awake';
   if (/in ?bed/.test(v)) return 'inbed';
   if (/deep/.test(v)) return 'deep';
   if (/\brem\b/.test(v)) return 'rem';
   if (/core|light/.test(v)) return 'core';
+  if (/asleep|unspecified/.test(v)) return 'asleep';
   const n = parseInt(v, 10); // HealthKit category codes
   if (!isNaN(n) && n >= 0 && n <= 5) return ['inbed', 'asleep', 'awake', 'core', 'deep', 'rem'][n];
-  return 'asleep';
+  return strict ? null : 'asleep';
 }
 
 /* text from the Shortcut, or JSON from Health Auto Export / a native bridge → { samples } or { days } */
@@ -133,67 +166,104 @@ function hkUnion(iv) {
   if (ce != null) tot += ce - cs;
   return tot / 60000;
 }
+/* One night of sleep → minutes per stage, or null if nothing was asleep. iv = [startMs, endMs, stage, source].
+   Policy (shared by the API adapter and the paste parser):
+   1. A night is every sample whose END falls between 18:00 and the next 18:00 (hkNight), dated by the morning you wake.
+   2. Source: when an Apple Watch (source name contains "watch") wrote any stage sample that night (Core, Deep, REM,
+      Asleep or Awake), only its samples count for the stages, because the iPhone's In Bed guess covers the same hours.
+      If the Watch has no asleep stage that night, or there is no Watch at all, every other source is used.
+   3. Asleep = Core + Deep + REM + Asleep. Awake and In Bed never count as asleep.
+   4. Overlapping intervals are unioned: within each stage for the stage totals, and across stages for the asleep total,
+      so two sources or a repeated import never double count.
+   5. Time in bed = union of In Bed (any source) + the counted asleep and awake intervals.
+   Missing stays missing: a stage with no samples is null, never 0. */
+const HK_ASLEEP = ['asleep', 'core', 'deep', 'rem'];
+const hkIsWatch = (src) => /watch/i.test(String(src || ''));
+function hkSleepNight(iv) {
+  const ok = iv.filter((x) => x && x[1] > x[0] && x[2]);
+  const staged = ok.filter((x) => x[2] !== 'inbed');
+  const watch = staged.filter((x) => hkIsWatch(x[3]));
+  let use = staged.filter((x) => !hkIsWatch(x[3])), src = 'other';
+  if (watch.length && watch.some((x) => HK_ASLEEP.includes(x[2]))) { use = watch; src = 'watch'; }
+  else if (!use.some((x) => HK_ASLEEP.includes(x[2]))) { use = staged; src = watch.length ? 'watch' : 'other'; }
+  const of = (st, a) => (a || use).filter((x) => st.includes(x[2]));
+  const sl = of(HK_ASLEEP);
+  if (!sl.length) return null;
+  // the main sleep is the longest block (gaps under 90 min joined); naps still count toward the total
+  const blocks = [];
+  sl.slice().sort((a, b) => a[0] - b[0]).forEach(([s, e]) => { const b = blocks[blocks.length - 1]; if (b && s - b[1] < 90 * 60000) b[1] = Math.max(b[1], e); else blocks.push([s, e]); });
+  const main = blocks.reduce((a, b) => (b[1] - b[0] > a[1] - a[0] ? b : a));
+  const n = (x) => { const m = Math.round(hkUnion(x)); return m || null; };
+  return { asleep: Math.round(hkUnion(sl)), deep: n(of(['deep'])), rem: n(of(['rem'])), core: n(of(['core'])), awake: n(of(['awake'])), inbed: n(of(['inbed'], ok).concat(sl, of(['awake']))), start: main[0], end: main[1], src };
+}
+
+/* A workout: type, start/end (ms), dur = ACTIVE minutes only when the source gave a duration (else null),
+   span = elapsed minutes (end − start), kcal = measured energy, or an apportioned estimate flagged kcalEst. */
+function hkMkWorkout(o) {
+  const start = o.start, end = o.end != null ? o.end : o.start;
+  const span = start != null && end > start ? Math.round((end - start) / 60000) : null;
+  const dur = o.dur != null && isFinite(o.dur) && o.dur > 0 ? Math.round(o.dur) : null;
+  if (!(dur > 0) && !(span > 0)) return null;
+  const name = String(o.n || 'Workout').slice(0, 40).replace(/[\s,;:|·-]*[\d.,:]+\s*(?:min(?:ute)?s?|kcal|cal|km|mi|m|kj|bpm|h|hr)?\s*$/i, '').trim() || 'Workout';
+  const w = { n: name, start, end, dur, span, kcal: o.kcal != null && isFinite(o.kcal) ? Math.round(o.kcal) : null, kcalEst: !!o.kcalEst, src: o.src ? String(o.src).slice(0, 40) : '' };
+  if (w.kcal == null) w.kcalEst = false;
+  return w;
+}
+/* every reader of hk.wk goes through here: older imports stored {n, min, kcal, est}, where min was elapsed time */
+function hkWk(w) {
+  const span = w.span != null ? w.span : w.start != null && w.end > w.start ? Math.round((w.end - w.start) / 60000) : w.min != null ? w.min : null;
+  return { n: w.n || 'Workout', start: w.start != null ? w.start : null, end: w.end != null ? w.end : null, dur: w.dur != null ? w.dur : null, span, kcal: w.kcal != null ? w.kcal : null, kcalEst: !!(w.kcalEst || w.est), src: w.src || '', hr: w.hr || null };
+}
+const hkWkMin = (w) => { const x = hkWk(w); return x.dur != null ? x.dur : x.span; }; // best minutes for load maths: active when known
+/* the words every screen uses: "45 min active" / "52 min elapsed", "320 kcal" / "~320 kcal est." */
+function hkWkMinTxt(w) { const x = hkWk(w); return x.dur != null ? x.dur + ' min active' : x.span != null ? x.span + ' min elapsed' : ''; }
+function hkWkKcalTxt(w) { const x = hkWk(w); return x.kcal == null ? '' : x.kcalEst ? '~' + x.kcal + ' kcal est.' : x.kcal + ' kcal'; }
+
 function hkSummarize(samples) {
   const days = {}, at = (k) => days[k] || (days[k] = {});
   const night = {}, hrv = {}, rhr = {}, wt = {}, whr = {}, resp = {}, spo2 = {}, vo2 = {}, hr = {};
-  const cal = (t) => iso(t), shifted = (t) => iso(new Date(t.getTime() + HK_SHIFT));
+  const cal = (t) => iso(t);
   const unit = S.settings.unit || 'lb';
   const eIv = [], hIv = [], wks = []; // hourly energy / heart rate, matched to workouts below
   samples.forEach((s) => {
     const v = hkNum(s.val);
     switch (s.kind) {
-      case 'sleep': { const k = shifted(s.end); (night[k] = night[k] || []).push([s.start.getTime(), s.end.getTime(), hkStage(s.val + ' ' + (s.extra || ''))]); break; }
+      case 'sleep': { const k = hkNight(s.end); (night[k] = night[k] || []).push([s.start.getTime(), s.end.getTime(), hkStage(s.val + ' ' + (s.extra || '')), s.extra || '']); break; }
       case 'sleepday': {
         const r = (x) => (x == null ? null : Math.round(x));
-        at(shifted(s.end)).sleep = { asleep: r(s.asleep), deep: r(s.deep), rem: r(s.rem), core: r(s.core), awake: r(s.awake), inbed: r(s.inbed), start: s.start.getTime(), end: s.end.getTime() };
+        at(hkNight(s.end)).sleep = { asleep: r(s.asleep), deep: r(s.deep), rem: r(s.rem), core: r(s.core), awake: r(s.awake), inbed: r(s.inbed), start: s.start.getTime(), end: s.end.getTime() };
         break;
       }
-      case 'hrv': if (v != null && v > 5 && v < 300) { const k = shifted(s.start); (hrv[k] = hrv[k] || []).push(v); } break;
+      case 'hrv': { const x = v == null ? null : hkHrvMs(v, s.unit); if (x != null && x > 5 && x < 300) { const k = hkNight(s.start); (hrv[k] = hrv[k] || []).push(x); } break; }
       case 'rhr': if (v != null && v > 25 && v < 140) { const k = cal(s.start); (rhr[k] = rhr[k] || []).push(v); } break;
       case 'whr': if (v != null && v > 30 && v < 200) { const k = cal(s.start); (whr[k] = whr[k] || []).push(v); } break;
       case 'resp': if (v != null && v > 4 && v < 40) { const k = cal(s.start); (resp[k] = resp[k] || []).push(v); } break;
-      case 'spo2': { if (v == null) break; const x = v <= 1.5 ? v * 100 : v; if (x >= 70 && x <= 100) { const k = cal(s.start); (spo2[k] = spo2[k] || []).push(x); } break; }
+      case 'spo2': { if (v == null) break; const x = hkSpo2(v, s.unit); if (x >= 70 && x <= 100) { const k = cal(s.start); (spo2[k] = spo2[k] || []).push(x); } break; }
       case 'vo2': if (v != null && v >= 10 && v <= 90) { const k = cal(s.start); if (!vo2[k] || s.start >= vo2[k].t) vo2[k] = { t: s.start, x: v }; } break;
       case 'hr': if (v != null && v >= 30 && v <= 200) { const k = cal(s.start); (hr[k] = hr[k] || []).push(v); if (s.end - s.start <= 2 * 3600000) hIv.push([s.start.getTime(), s.end.getTime(), v]); } break;
       case 'kcal': case 'steps': case 'exmin': {
         if (v == null) break;
-        let x = v;
-        if (s.kind === 'kcal' && /kj/i.test(s.unit)) x = v / 4.184;
-        if (s.kind === 'exmin' && /^(s|sec)/i.test(s.unit)) x = v / 60;
+        const x = s.kind === 'kcal' ? hkKcal(v, s.unit) : s.kind === 'exmin' ? hkMinutes(v, s.unit) : v;
         const d = at(cal(s.start)); d[s.kind] = (d[s.kind] || 0) + x;
         if (s.kind === 'kcal' && s.end - s.start <= 2 * 3600000) eIv.push([s.start.getTime(), s.end.getTime(), x]);
         break;
       }
       case 'weight': {
         if (v == null) break;
-        let x = v;
-        if (/kg/i.test(s.unit) && unit === 'lb') x = v * KG_LB;
-        else if (/lb|pound/i.test(s.unit) && unit === 'kg') x = v / KG_LB;
-        const k = cal(s.start);
+        const x = hkWeight(v, s.unit, unit), k = cal(s.start);
         if (!wt[k] || s.start >= wt[k].t) wt[k] = { t: s.start, x };
         break;
       }
       case 'workout': {
-        const min = s.min != null ? s.min : (s.end - s.start) / 60000;
-        if (!(min > 0)) break;
+        const w = hkMkWorkout({ n: s.val, start: s.start.getTime(), end: s.end.getTime(), dur: s.min, kcal: s.kcal != null ? s.kcal : hkNum(s.extra) });
+        if (!w) break;
         const d = at(cal(s.start)); d.wk = d.wk || [];
-        const w = { n: String(s.val || 'Workout').slice(0, 40).replace(/[\s,;:|·-]*[\d.,:]+\s*(?:min(?:ute)?s?|kcal|cal|km|mi|m|kj|bpm|h|hr)?\s*$/i, '').trim() || 'Workout', min: Math.round(min), kcal: s.kcal != null ? Math.round(s.kcal) : hkNum(s.extra) };
-        d.wk.push(w); wks.push([s.start.getTime(), s.end.getTime(), w]);
+        d.wk.push(w); wks.push([w.start, w.end, w]);
         break;
       }
     }
   });
-  Object.keys(night).forEach((k) => {
-    const iv = night[k], of = (...st) => iv.filter((x) => st.includes(x[2]));
-    const sl = of('asleep', 'core', 'deep', 'rem');
-    if (!sl.length) return;
-    // the main sleep is the longest block (gaps under 90 min joined); naps still count toward the total
-    const blocks = [];
-    sl.slice().sort((a, b) => a[0] - b[0]).forEach(([s, e]) => { const b = blocks[blocks.length - 1]; if (b && s - b[1] < 90 * 60000) b[1] = Math.max(b[1], e); else blocks.push([s, e]); });
-    const main = blocks.reduce((a, b) => (b[1] - b[0] > a[1] - a[0] ? b : a));
-    const n = (x) => { const m = Math.round(hkUnion(x)); return m || null; };
-    at(k).sleep = { asleep: Math.round(hkUnion(sl)), deep: n(of('deep')), rem: n(of('rem')), core: n(of('core')), awake: n(of('awake')), inbed: n(of('inbed', 'asleep', 'core', 'deep', 'rem')), start: main[0], end: main[1] };
-  });
+  Object.keys(night).forEach((k) => { const sl = hkSleepNight(night[k]); if (sl) at(k).sleep = sl; });
   const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
   Object.keys(hrv).forEach((k) => { at(k).hrv = Math.round(avg(hrv[k])); });
   Object.keys(rhr).forEach((k) => { at(k).rhr = Math.round(avg(rhr[k])); });
@@ -205,20 +275,34 @@ function hkSummarize(samples) {
   Object.keys(hr).forEach((k) => { at(k).hr = Math.round(avg(hr[k])); });
   Object.keys(wt).forEach((k) => { at(k).weight = Math.round(wt[k].x * 10) / 10; });
   Object.keys(days).forEach((k) => { ['kcal', 'steps', 'exmin'].forEach((f) => { if (days[k][f] != null) days[k][f] = Math.round(days[k][f]); }); });
-  // workouts carry no calories or heart rate of their own in the Shortcut text: share out the hourly (never daily)
-  // active energy by overlap, and average the hourly heart rate across the hours it covers (approximate)
+  // a workout with no energy of its own gets a share of the hourly (never daily) active energy by overlap, flagged
+  // as an estimate (kcalEst) so every screen shows it as "~ est."; measured energy is never replaced. The average of
+  // the hourly heart rate across the hours it covers is approximate too.
   const lap = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
   wks.forEach(([ws, we, w]) => {
     if (w.kcal == null) {
       let k = 0, hit = false;
       eIv.forEach(([s0, s1, x]) => { const o = lap(ws, we, s0, s1); if (o > 0 && s1 > s0) { k += x * o / (s1 - s0); hit = true; } });
-      if (hit) { w.kcal = Math.round(k); w.est = 1; }
+      if (hit) { w.kcal = Math.round(k); w.kcalEst = true; }
     }
     let hs = 0, hw = 0;
     hIv.forEach(([s0, s1, x]) => { const o = lap(ws, we, s0, Math.max(s1, s0 + 1)); if (o > 0) { hs += x * o; hw += o; } });
     if (hw) w.hr = Math.round(hs / hw);
   });
   return days;
+}
+
+/* Health weight and steps fill the manual fields only while they are empty or were filled by Health (wsrc/ssrc 'hk');
+   anything the user typed (which clears wsrc/ssrc, see views.js) is never overwritten. */
+function hkFillManual(d, m) {
+  if (m.weight != null && (!d.weight || d.wsrc === 'hk')) { d.weight = m.weight.toFixed(1); d.wsrc = 'hk'; }
+  if (m.steps != null && (!d.steps || d.ssrc === 'hk')) { d.steps = String(m.steps); d.ssrc = 'hk'; }
+}
+/* every cache that depends on hk data: recovery, trend memo, weekly summaries (re-frozen on the next freezeWeeks) */
+function hkInvalidate() {
+  hkMemo = {};
+  try { if (typeof wkCache !== 'undefined') { wkCache.key = ''; wkCache.v = {}; } } catch (e) { /* not loaded */ }
+  try { if (typeof freezeKey !== 'undefined') freezeKey = ''; } catch (e) { /* not loaded */ }
 }
 
 /* merge an import into the log. The oldest day in a window is usually only partly covered, so there
@@ -240,21 +324,20 @@ function hkImport(text) {
       else m[f] = v;
     });
     m.at = now; d.hk = m;
-    if (m.weight != null && (!d.weight || d.wsrc === 'hk')) { d.weight = m.weight.toFixed(1); d.wsrc = 'hk'; }
-    if (m.steps != null && (!d.steps || d.ssrc === 'hk')) { d.steps = String(m.steps); d.ssrc = 'hk'; }
+    hkFillManual(d, m);
     d.u = now; Cloud.dirty.add('w-' + mondayOf(k));
   });
   S.settings.hk = { at: now, from: keys[0], to: keys[keys.length - 1], n: keys.length, has: Array.from(found) };
   S.u = now; Cloud.dirty.add('meta');
   lsSet(); Cloud.schedule();
-  hkMemo = {};
+  hkInvalidate();
   return { n: keys.length, has: Array.from(found) };
 }
 
 /* ------------------------------------------------------------------ recovery model */
 let hkMemo = {};
 const hkOf = (date) => peek(date).hk || null;
-const hkConnected = () => !!(S.settings.hk && S.settings.hk.at);
+const hkConnected = () => (typeof hksPaired === 'function' && hksPaired()) || !!(S.settings.hk && S.settings.hk.at);
 const sleepGoal = () => S.settings.sleepGoal || 7.5;
 function sleepH(date) { const h = hkOf(date); return h && h.sleep && h.sleep.asleep != null ? h.sleep.asleep / 60 : null; }
 function hkSeries(date, key, n) { const xs = []; for (let i = 1; i <= n; i++) { const h = hkOf(addDays(date, -i)); if (h && h[key] != null) xs.push(h[key]); } return xs; }
@@ -274,7 +357,9 @@ function dayLoad(date) {
     app += s.type === 'lift' ? (s.min ? 180 : 360) : s.type === 'hiit' ? 320 : s.type === 'cardio' ? ((s.cardio && s.cardio.min) || 30) * 5 : 0;
   });
   let watch = 0;
-  if (h.wk && h.wk.length) watch = h.wk.reduce((a, w) => { const r = w.kcal && w.min ? w.kcal / w.min : 6; return a + w.min * (r >= 10 ? 8 : r >= 6 ? 6 : 4); }, 0);
+  // workout load: active minutes when the source gave them, else elapsed; the intensity guess uses measured energy only
+  // (an estimated share of hourly energy is too loose to steer recovery), and 6 kcal/min when there is none
+  if (h.wk && h.wk.length) watch = h.wk.reduce((a, w) => { const x = hkWk(w), m = x.dur != null ? x.dur : x.span; if (!m) return a; const r = x.kcal && !x.kcalEst ? x.kcal / m : 6; return a + m * (r >= 10 ? 8 : r >= 6 ? 6 : 4); }, 0);
   else if (h.exmin) watch = h.exmin * 4;
   return Math.max(app, watch);
 }
@@ -385,7 +470,7 @@ function recoveryCard(date) {
     if (c.sick) why.push('sick');
     if (why.length && (tier === 'yellow' || tier === 'red')) h += '<p class="small fg2" style="margin:10px 0 0">Why: ' + esc(why.join('; ')) + '.</p>';
   } else {
-    h += '<div class="row" style="gap:12px"><span class="grow"><span class="eyebrow">Recovery</span><span class="small fg2" style="display:block;margin-top:4px">' + (date === t ? 'No sleep or HRV for last night yet. Tap Sync to run Fresh Start Health.' : 'No Apple Health data for this day.') + '</span></span></div>';
+    h += '<div class="row" style="gap:12px"><span class="grow"><span class="eyebrow">Recovery</span><span class="small fg2" style="display:block;margin-top:4px">' + (date === t ? 'No sleep or HRV for last night yet. ' + hksNoDataHint() : 'No Apple Health data for this day.') + '</span></span></div>';
   }
   const goal = sleepGoal(), sl = R.sleepH;
   const chips = [];
@@ -395,18 +480,14 @@ function recoveryCard(date) {
   if (R.acwr != null) chips.push(hkChip('Load', R.acwr.toFixed(2) + '×', '7 d vs 28 d', R.acwr > 1.5 ? 'warn' : ''));
   if (chips.length) h += '<div class="hkchips">' + chips.join('') + '</div>';
   if (c.neck == null) h += '<button class="btn train block sm" style="margin-top:12px" data-a="sheet" data-v="ready">Finish check-in: neck and back</button>';
-  // tonight's bedtime once Health has synced today; until then, when it last synced
-  const stA = S.settings.hk, syncedToday = stA && stA.at && iso(new Date(stA.src === 'auto' && stA.up ? stA.up : stA.at)) === t;
-  const bt = date === t && syncedToday ? bedtime(date) : null;
-  h += '<div class="row small muted" style="justify-content:space-between;margin-top:12px;gap:10px"><span>' + (bt ? 'In bed by <b class="fg2">' + fmtClock(bt.bed) + '</b> for ' + goal + ' h asleep' : hkSyncedLabel()) + '</span><span class="row" style="gap:14px">' + (c.neck != null ? '<button style="color:var(--fg-2);font-weight:600" data-a="sheet" data-v="ready">Check-in</button>' : '') + '<button style="color:var(--link);font-weight:600" data-a="hkSync">Sync</button></span></div>';
+  // tonight's bedtime once Health data was COLLECTED today; otherwise the truthful status (never "synced" for old data)
+  const bt = date === t && hksCollectedToday() ? bedtime(date) : null;
+  if (bt) h += '<div class="small muted" style="margin-top:12px">In bed by <b class="fg2">' + fmtClock(bt.bed) + '</b> for ' + goal + ' h asleep</div>';
+  h += '<div class="row small muted" style="justify-content:space-between;margin-top:' + (bt ? 4 : 12) + 'px;gap:10px"><span>' + hksFooterHTML() + '</span><span class="row" style="gap:14px">' + (c.neck != null ? '<button style="color:var(--fg-2);font-weight:600" data-a="sheet" data-v="ready">Check-in</button>' : '') + '<button style="color:var(--link);font-weight:600" data-a="hkSync">Sync</button></span></div>';
   return h + '</div>';
 }
-/* "Synced 7:02 AM · automatic": for automatic syncs, the time the shortcut read Health */
-function hkSyncedLabel() {
-  const st = S.settings.hk; if (!st || !st.at) return hkAuto() ? 'Waiting for the first sync' : 'Not synced yet';
-  const auto = st.src === 'auto', d = new Date(auto && st.up ? st.up : st.at);
-  return 'Synced ' + hkWhen(d) + (auto ? ' · automatic' : '');
-}
+/* plain-text status line for settings: from hk-sync.js (collection time, never the time we downloaded old data) */
+function hkSyncedLabel() { return hksSyncedLabel(); }
 function hkWhen(d) {
   d = new Date(d);
   const t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), k = iso(d);
@@ -474,7 +555,7 @@ function hkProgress() {
   if (!hkConnected()) return '';
   const N = HKP_RANGES.includes(ui.hkRange) ? ui.hkRange : 28, B = Math.max(1, Math.round(N / 14));
   const H = (d) => hkOf(d) || {}, mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
-  const wkCount = (d) => (H(d).wk || []).length, wkMin = (d) => (H(d).wk || []).reduce((a, w) => a + (w.min || 0), 0);
+  const wkCount = (d) => (H(d).wk || []).length, wkMin = (d) => (H(d).wk || []).reduce((a, w) => a + (hkWk(w).span || 0), 0); // elapsed minutes: always known, same basis every week
   // [name, daily getter, formatter, unit, good direction (+1 higher / -1 lower), colour, decimals]
   const M = [
     ['Sleep', sleepH, (v) => fmtHM(v).replace(' m', 'm').replace(' h ', 'h '), '', 1, 'var(--mind)', 1],
@@ -514,7 +595,7 @@ function hkProgress() {
     let n7 = 0, m7 = 0, nb = 0, mb = 0; for (let i = 0; i < 7; i++) { n7 += wkCount(addDays(t, -i)); m7 += wkMin(addDays(t, -i)); }
     for (let i = 7; i < N; i++) { nb += wkCount(addDays(t, -i)); mb += wkMin(addDays(t, -i)); }
     const wks = (N - 7) / 7, base = wks > 0 ? mb / wks : null;
-    rows += '<div class="row" style="gap:12px"><div style="width:104px;flex:none"><div class="small fg2">Workouts / wk</div><div class="h-md tnum">' + n7 + '<span class="muted" style="font-size:12px;font-weight:500"> · ' + Math.round(m7) + ' min</span></div></div>' + spark(wkSeries, 'var(--train)') + '<div style="width:92px;flex:none;text-align:right">' + change(m7, base, 1, 0, ' min') + '</div></div>';
+    rows += '<div class="row" style="gap:12px"><div style="width:104px;flex:none"><div class="small fg2">Workouts / wk</div><div class="h-md tnum">' + n7 + '<span class="muted" style="font-size:12px;font-weight:500"> · ' + Math.round(m7) + ' min elapsed</span></div></div>' + spark(wkSeries, 'var(--train)') + '<div style="width:92px;flex:none;text-align:right">' + change(m7, base, 1, 0, ' min') + '</div></div>';
   }
   let h = '<section class="pad section"><div class="sec-h"><h2 class="h-md">Health trends</h2><span class="small muted">Last 7 days vs before</span></div>';
   h += '<div class="row" style="gap:6px;margin-bottom:10px">' + HKP_RANGES.map((r) => '<button class="chip' + (r === N ? ' good' : '') + '" style="flex:1;justify-content:center;padding:7px 0" data-a="hkRange" data-v="' + r + '">' + r / 7 + ' weeks</button>').join('') + '</div>';
@@ -534,7 +615,7 @@ function hkCalNote(c) {
 /* ------------------------------------------------------------------ UI: Settings card + setup layer + paste sheet */
 function hkSettingsCard() {
   const st = S.settings.hk;
-  let h = '<div class="card stack"><div class="row"><span class="grow"><span style="font-weight:600;display:block">Apple Health</span><span class="small muted">' + (st && st.at ? hkSyncedLabel() + ' · ' + fmtShort(st.from) + ' – ' + fmtShort(st.to) : 'Not connected') + '</span></span><button class="btn ghost sm" data-a="push" data-v="health">' + (st && st.at ? 'Manage' : 'Set up') + '</button></div>';
+  let h = '<div class="card stack"><div class="row"><span class="grow"><span style="font-weight:600;display:block">Apple Health</span><span class="small muted">' + esc(hksSyncedLabel()) + (st && st.at ? ' · ' + fmtShort(st.from) + ' – ' + fmtShort(st.to) : '') + '</span></span><button class="btn ghost sm" data-a="push" data-v="health">' + (hkConnected() ? 'Manage' : 'Set up') + '</button></div>';
   h += '<div class="row"><span class="grow"><span style="font-weight:600;display:block">Sleep goal</span><span class="small muted">Sets the sleep score and tonight’s bedtime</span></span><div class="row" style="gap:6px"><button class="icon-btn" style="width:36px;height:36px" data-a="hkGoal" data-v="-0.25" aria-label="Less sleep">' + ic('minus') + '</button><span class="tnum" style="min-width:52px;text-align:center;font-weight:700">' + sleepGoal() + ' h</span><button class="icon-btn" style="width:36px;height:36px" data-a="hkGoal" data-v="0.25" aria-label="More sleep">' + ic('plus') + '</button></div></div>';
   return h + '</div>';
 }
@@ -632,7 +713,7 @@ const HK_STEPS = [
   ['Add <b>Repeat with Each</b> and pick the <b>Health</b> variable.', ''],
   ['Inside the repeat, add a <b>Text</b> action and build this line from the Repeat Item’s details, with a <b>|</b> between each one:<div class="hkcode">Type|Start Date|End Date|Value|Unit</div>', 'Tap each date and set Date Format to ISO 8601. The app can also read the default format.'],
   ['After <b>End Repeat</b>, add <b>Combine Text</b> (Repeat Results, New Lines), then <b>Copy to Clipboard</b>.', ''],
-  ['Run it once from <b>Sync now</b> in this app and allow Health access for each type. Then each morning, tap <b>Sync now</b>, switch back and tap <b>Paste Health data</b>.', 'Keep the iPhone unlocked while it runs, because Health data is locked when the phone is.'],
+  ['Run it once from <b>Run the clipboard shortcut</b> below and allow Health access for each type. Then each time, run it, switch back and tap <b>Paste Health data</b>.', 'Keep the iPhone unlocked while it runs, because Health data is locked when the phone is.'],
 ];
 function hkNum0(n, done) {
   return '<span aria-hidden="true" style="flex:none;width:26px;height:26px;border-radius:13px;display:grid;place-items:center;font-weight:700;font-size:14px;' +
@@ -641,40 +722,38 @@ function hkNum0(n, done) {
 function hkStep(n, done, title, body, dim) {
   return '<div class="row" style="gap:12px;align-items:flex-start' + (dim ? ';opacity:.45' : '') + '">' + hkNum0(n, done) + '<div class="grow" style="min-width:0"><div style="font-weight:600">' + title + '</div>' + (body ? '<div style="margin-top:6px">' + body + '</div>' : '') + '</div></div>';
 }
+/* the old clipboard route, kept only inside "Emergency import": it never prompts on its own */
 function hkSetupCard() {
-  const hk = S.settings.hk, synced = !!(hk && hk.at);
-  let h = '<div class="card"><h3 class="h-sm">Connect in 3 steps</h3>';
-  if (synced) h += '<p class="small fg2" style="margin:6px 0 0">Last synced: <b>' + hkWhen(hk.at) + '</b></p>';
-  h += '<div class="stack" style="margin-top:14px">';
-  h += hkStep(1, synced, 'Add the shortcut', HKS_READY ? '<a class="btn train sm" href="' + HKS_FILE + '" download="Fresh Start Health.shortcut">Add Fresh Start Health</a>' +
-    '<p class="xs muted" style="margin:8px 0 0">If Safari asks, tap Download, then open it from the ↓ downloads button and tap Add Shortcut. Delete any old Fresh Start Sync shortcut first. If your iPhone won’t add it, build it by hand with the steps further down — it takes about 5 minutes.</p>'
-    : '<p class="small fg2" style="margin:0">Build <b>Fresh Start Health</b> by hand with the steps under <b>Build it by hand instead</b> below. It takes about 5 minutes, and because your iPhone builds it, nothing can be set up wrong. (A one-tap install link comes back here once Apple’s shortcut signing service is working again.)</p>');
-  h += hkStep(2, synced, 'Tap Sync now', '<button class="btn train sm" data-a="hkSync">Sync now</button>' +
-    '<p class="xs muted" style="margin:8px 0 0">Once only: open the Settings app → Apps → Shortcuts → Advanced and turn on <b>Allow Sharing Large Amounts of Data</b>, or Shortcuts stops with “trying to share … Health items”. The first run asks for Health access: turn on every type and tap Allow. Keep the iPhone unlocked while it runs.</p>');
-  h += hkStep(3, synced, 'Come back and paste', '<p class="xs muted" style="margin:0">Tap ‹ Fresh Start at the top left (or switch back), then Paste Health data. Do this each morning before your check-in; it takes about 10 seconds.</p>');
-  h += '</div>';
-  if (S.settings.hkGist) h += '<p class="xs muted" style="margin:14px 0 0">The old GitHub sync is switched off. You can delete the \'Fresh Start Health\' gist on GitHub and the old token whenever you like.</p>';
+  const hk = S.settings.hk, synced = !!(hk && hk.at && hk.src !== 'api'); // an API import isn't a paste
+  let h = '<div class="stack" style="margin-top:4px"><h3 class="h-sm">Clipboard route</h3>';
+  if (synced) h += '<p class="small fg2" style="margin:0">Last pasted: <b>' + hkWhen(hk.at) + '</b></p>';
+  h += hkStep(1, synced, 'Add the shortcut', HKS_READY ? '<a class="btn ghost sm" href="' + HKS_FILE + '" download="Fresh Start Health.shortcut">Add Fresh Start Health</a>' +
+    '<p class="xs muted" style="margin:8px 0 0">If Safari asks, tap Download, then open it from the ↓ downloads button and tap Add Shortcut. If your iPhone won’t add it, build it by hand with the steps below.</p>'
+    : '<p class="small fg2" style="margin:0">Build <b>Fresh Start Health</b> by hand with the steps below. It takes about 5 minutes.</p>');
+  h += hkStep(2, synced, 'Run it', '<button class="btn ghost sm" data-a="hkPasteRoute">Run the clipboard shortcut</button>' +
+    '<p class="xs muted" style="margin:8px 0 0">Once only: Settings → Apps → Shortcuts → Advanced → turn on <b>Allow Sharing Large Amounts of Data</b>. The first run asks for Health access. Keep the iPhone unlocked while it runs.</p>');
+  h += hkStep(3, synced, 'Come back and paste', '<p class="xs muted" style="margin:0">Switch back to Fresh Start: a Paste Health data button appears. Only this route asks for a paste.</p>');
   return h + '</div>';
 }
 function lHealth() {
-  const st = S.settings.hk, R = recovery(todayISO());
+  const st = S.settings.hk, R = recovery(todayISO()), paired = hksPaired();
   let h = '<div class="layer"><div class="wrap"><div class="lbar pad solid"><button class="icon-btn" data-a="pop" aria-label="Back">' + ic('back') + '</button><div class="h-sm">Apple Health</div><span style="width:44px"></span></div><div class="pad stack" style="margin-top:8px">';
-  h += '<div class="card"><div class="row" style="gap:12px"><span style="width:40px;height:40px;border-radius:10px;background:var(--fuel);color:#fff;display:grid;place-items:center;flex:none">' + ic('heart') + '</span><span class="grow"><span style="font-weight:600;display:block">' + (st && st.at ? 'Connected' : 'Not connected yet') + '</span><span class="small muted">' + (st && st.at ? hkSyncedLabel() + ' · ' + st.n + ' days · ' + hkHasLabel(st.has) : 'Set it up below') + '</span></span></div>' +
-    '<div class="row" style="gap:10px;margin-top:14px;flex-wrap:wrap">' + '<button class="btn train sm" data-a="hkSync">Sync now</button>' + '<button class="btn ghost sm" data-a="sheet" data-v="hkpaste">Paste or import a file</button></div>' +
-    (R.score != null ? '<p class="small fg2" style="margin:12px 0 0">Today: recovery ' + R.score + ' · ' + esc(PUSH_TXT[R.tier][0]) + '.</p>' : '') + '</div>';
+  h += hksStatusCard(R);
+  h += hksTokenCard();
+  if (!paired) h += hksPairCard();
   h += hkFitnessCard();
-  h += hkSetupCard();
   h += '<div class="card"><h3 class="h-sm">What it does</h3><ul class="small fg2" style="margin:8px 0 0;padding-left:18px">' + [
     'Reads last night’s sleep, HRV and resting heart rate, and weighs them against your own 4-week normal.',
     'Compares this week’s training (sessions you log here plus Watch workouts) with your 4-week average.',
     'Sets today’s level: <b>Push</b>, <b>Train as written</b>, <b>Hold back</b> or <b>Recover</b>. Health can make a day stricter than your check-in, never looser, and your neck and back rules always apply.',
-    'Fills in weigh-ins from a smart scale and daily steps, tells you when to get into bed tonight, and tells you whether calibration should come from steps or food.',
-  ].map((x) => '<li style="margin:5px 0">' + x + '</li>').join('') + '</ul><p class="xs muted" style="margin:10px 0 0">Apple doesn’t let web apps read Health directly, so the Fresh Start Health shortcut copies it and you paste it into the app. HRV and resting-HR comparisons start after about a week of data.</p></div>';
-  h += '<details class="card"><summary style="font-weight:600;cursor:pointer">Build it by hand instead (5 minutes)</summary><p class="small fg2" style="margin:8px 0 0">Build the shortcut yourself, then run it from <b>Sync now</b> each morning and paste.</p><ol class="hksteps">' + HK_STEPS.map(([a, b]) => '<li><div class="small">' + a + '</div>' + (b ? '<div class="xs muted" style="margin-top:3px">' + b + '</div>' : '') + '</li>').join('') + '</ol></details>';
-  h += '<div class="card"><h3 class="h-sm">Already use Health Auto Export?</h3><p class="small fg2" style="margin:6px 0 0">Its JSON export works too. Copy it or save it to Files, then use <b>Paste or import a file</b>.</p></div>';
+    'Fills in weigh-ins from a smart scale and daily steps (never over a number you typed), tells you when to get into bed tonight, and tells you whether calibration should come from steps or food.',
+  ].map((x) => '<li style="margin:5px 0">' + x + '</li>').join('') + '</ul><p class="xs muted" style="margin:10px 0 0">Apple doesn’t let web apps read Health directly. The Fresh Start shortcuts on your iPhone upload it to your own Health Sync server, and this app downloads it from there. HRV and resting-HR comparisons start after about a week of data. Workout minutes are labelled <b>active</b> when Health gave a duration and <b>elapsed</b> (start to end) when it didn’t; calories marked <b>~ est.</b> are an estimate, not a measurement.</p></div>';
   h += hkSettingsCard();
-  if (st && st.at) h += '<div class="card"><div class="row"><span class="grow"><span style="font-weight:600;display:block">Remove Health data</span><span class="small muted">Clears every imported day. Your own logs stay.</span></span><button class="btn ghost sm" style="color:var(--bad)" data-a="hkClear">' + (ui.hkClearArm ? 'Tap again' : 'Remove') + '</button></div></div>';
-  return h + '<p class="xs muted" style="text-align:center;margin-top:4px">Health data stays on your iPhone: the shortcut copies it to the clipboard and the app stores it with your other logs.</p></div></div></div>';
+  if (paired) h += hksControlsCard();
+  if (st && st.at) h += '<div class="card"><div class="row"><span class="grow"><span style="font-weight:600;display:block">Remove Health data from this phone</span><span class="small muted">Clears every imported day here. Your own logs stay. The server copy stays until you delete it above.</span></span><button class="btn ghost sm" style="color:var(--bad)" data-a="hkClear">' + (ui.hkClearArm ? 'Tap again' : 'Remove') + '</button></div></div>';
+  h += hksAdvancedCard();
+  h += hksEmergencyCard();
+  return h + '<p class="xs muted" style="text-align:center;margin-top:4px">Uploaded Health data is stored on your own Health Sync server (Cloudflare), not only on this iPhone. The read token stays on this device and is never synced or put in a link.</p></div></div></div>';
 }
 function hkFitnessCard() {
   const t = todayISO(), H = (i) => hkOf(addDays(t, -i)) || {};
@@ -698,7 +777,7 @@ function hkFitnessCard() {
   if (!rows && !wk.length) return '';
   let h = '<div class="card stack">';
   if (rows) h += '<h3 class="h-sm">Heart &amp; fitness</h3><div>' + rows + '</div>';
-  if (wk.length) h += '<h3 class="h-sm"' + (rows ? ' style="margin-top:6px"' : '') + '>Recent workouts</h3><div>' + wk.map(([d, w]) => '<div class="row" style="gap:12px;padding:5px 0"><span class="xs muted" style="width:64px">' + fmtShort(d) + '</span><span class="grow small">' + esc(w.n) + '</span><span class="small tnum muted">' + w.min + ' min' + (w.kcal != null ? ' · ' + (w.est ? '~' : '') + w.kcal + ' kcal' : '') + (w.hr ? ' · ' + w.hr + ' bpm' : '') + '</span></div>').join('') + '</div>';
+  if (wk.length) h += '<h3 class="h-sm"' + (rows ? ' style="margin-top:6px"' : '') + '>Recent workouts</h3><div>' + wk.map(([d, w]) => '<div class="row" style="gap:12px;padding:5px 0"><span class="xs muted" style="width:64px">' + fmtShort(d) + '</span><span class="grow small">' + esc(w.n) + '</span><span class="xs tnum muted" style="text-align:right">' + [hkWkMinTxt(w), hkWkKcalTxt(w), w.hr ? w.hr + ' bpm' : ''].filter(Boolean).join(' · ') + '</span></div>').join('') + '</div>';
   return h + '</div>';
 }
 function hkHasLabel(has) {
@@ -714,7 +793,7 @@ function hkPasteSheet() {
 function hkBackSheet() {
   return '<h2 class="h-lg">Bring in your Health data</h2><p class="small fg2" style="margin:6px 0 16px">Fresh Start Health copied your latest numbers.</p>' +
     '<button class="btn train block" data-a="hkPasteNow">Paste Health data</button>' +
-    '<button class="btn ghost block" style="margin-top:10px" data-a="hkSync">Run Fresh Start Health again</button>' +
+    '<button class="btn ghost block" style="margin-top:10px" data-a="hkPasteRoute">Run Fresh Start Health again</button>' +
     '<p class="xs muted" style="margin:12px 0 0;text-align:center">iOS will show a Paste button: tap it.</p>';
 }
 
@@ -725,8 +804,9 @@ function hkDone(r) {
   toast('Apple Health: ' + r.n + (r.n === 1 ? ' day' : ' days') + ' synced');
   return true;
 }
-/* Sync now: run the Fresh Start Health shortcut; when the app comes back, hkBackSheet asks for the paste */
-A.hkSync = () => {
+/* Emergency route only (A.hkSync in hk-sync.js is the normal Sync now): run the clipboard shortcut; when the app
+   comes back, hkBackSheet asks for the paste. Nothing else ever sets awaitPaste, so the prompt never appears unasked. */
+A.hkPasteRoute = () => {
   hkg.awaitPaste = Date.now() + 15 * 60000;
   location.href = HKS_RUN;
 };
@@ -741,11 +821,6 @@ A.hkPasteNow = async () => {
   const r = hkImport(text || '');
   if (r.n) { hkg.awaitPaste = 0; ui.hkMsg = ''; ui.sheet = null; render(); toast('Apple Health: ' + r.n + (r.n === 1 ? ' day' : ' days') + ' synced'); return; }
   fail();
-};
-A.hkCheck = async () => {
-  const before = hkg.last;
-  const r = await hkGistCheck(true);
-  if (!r.n && hkg.last !== before) toast(hkg.state === 'ok' ? 'No new Health data yet' : hkg.state === 'offline' ? 'You’re offline' : 'Couldn’t check: ' + hkg.msg);
 };
 IN.hkTok = (el) => { ui.hkTok = el.value; };
 A.hkConnect = async () => {
@@ -811,7 +886,7 @@ A.hkClear = () => {
     if (d.ssrc === 'hk') { delete d.steps; delete d.ssrc; }
     d.u = now; Cloud.dirty.add('w-' + mondayOf(k));
   });
-  delete S.settings.hk; touch(); hkMemo = {}; render(); toast('Health data removed');
+  delete S.settings.hk; touch(); hkInvalidate(); if (typeof hksResetLocal === 'function') hksResetLocal(); render(); toast('Health data removed');
 };
 A.chkClr = (el) => { const dt = chkDate(), d = day(dt); if (d.chk) delete d.chk[el.dataset.k]; touch(dt); render(); };
 IN.hkfile = (el) => {
