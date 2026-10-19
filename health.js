@@ -522,7 +522,7 @@ const HK_STEPS = [
   ['Run it once and allow Health access for each type. Then each morning, run it and tap <b>Sync</b> on the Today card.', 'Keep the iPhone unlocked while it runs, because Health data is locked when the phone is.'],
 ];
 const HK_AUTO_STEPS = [
-  'Tap <b>Run sync now</b> below once. The first run asks for Health access: turn on every type and tap <b>Allow</b>. If it asks to connect to <b>api.github.com</b>, tap <b>Always Allow</b>. Then come back here.',
+  'Tap <b>Run sync now</b> below once. The first run asks for Health access: turn on every type and tap <b>Allow</b>. Allow <b>api.github.com</b> and saving to iCloud Drive with <b>Always Allow</b>. A notification says when it worked; then come back here.',
   'In Shortcuts, open <b>Automation</b> and tap <b>+</b>.',
   'Choose <b>App</b>, pick an app you open every morning once you’re up (Weather, Mail or the news, say), and keep <b>Is Opened</b> ticked.',
   'Choose <b>Run Immediately</b>, turn off <b>Notify When Run</b>, tap <b>Next</b> and pick <b>Fresh Start Sync</b>.',
@@ -536,10 +536,10 @@ function hkStep(n, done, title, body, dim) {
 }
 function hkShortcutBlock() {
   const code = hkCode();
-  return '<p class="small fg2" style="margin:0 0 8px">Your setup code. The shortcut asks for it when you add it.</p>' +
+  return '<p class="small fg2" style="margin:0 0 8px">Add the shortcut (no questions), then tap <b>Run sync now</b>. The app hands it this code each time, so there is nothing to paste.</p>' +
     '<input class="field" id="hkCode" readonly value="' + esc(code) + '" aria-label="Setup code" style="font:13px ui-monospace,Menlo,monospace" onfocus="this.select()">' +
     '<div class="row" style="gap:10px;margin-top:10px;flex-wrap:wrap"><button class="btn ghost sm" data-a="hkCopyCode">Copy code</button><a class="btn train sm" href="' + HKG_FILE + '" download="Fresh Start Sync.shortcut">Add the shortcut</a></div>' +
-    '<p class="xs muted" style="margin:8px 0 0">If the iPhone asks, tap <b>Download</b>, then open the file from Safari’s downloads (the ↓ button). In Shortcuts, paste the code when asked and tap <b>Add Shortcut</b>. Built Fresh Start Sync by hand before? Delete that one first so this one keeps the name.</p>';
+    '<p class="xs muted" style="margin:8px 0 0">If the iPhone asks, tap <b>Download</b>, then open the file from Safari’s downloads (the ↓ button). In Shortcuts tap <b>Add Shortcut</b>. Delete any older Fresh Start Sync first so this one keeps the exact name.</p>';
 }
 function hkAutomationBlock() {
   return '<ol class="hksteps" style="margin-top:0">' + HK_AUTO_STEPS.map((x) => '<li><div class="small">' + x + '</div></li>').join('') + '</ol>' +
@@ -621,7 +621,8 @@ A.hkSync = async () => {
 };
 A.hkRun = () => {
   hkg.waitUntil = Date.now() + 3 * 60000; // re-check when the app comes back, and for a few minutes after
-  location.href = HKG_RUN;
+  const code = hkCode(); // hand the shortcut its connection code; it keeps a copy for automations
+  location.href = HKG_RUN + (code ? '&input=text&text=' + encodeURIComponent(code) : '');
 };
 A.hkCheck = async () => {
   const before = hkg.last;
