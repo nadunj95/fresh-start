@@ -650,6 +650,7 @@ function renderSheet(sh) {
     return '<h2 class="h-lg">Readiness</h2><p class="small fg2" style="margin:6px 0 12px">' + esc(fmtD(rd)) + '. Thirty seconds, then train.</p>' + readinessForm(rd) + (ok ? '<div style="margin-top:14px">' + tierBanner(rd) + '</div>' : '') + cta;
   }
   if (sh.v === 'hkpaste') return hkPasteSheet();
+  if (sh.v === 'hkback') return hkBackSheet();
   if (sh.v === 'exinfo') return exInfoSheet(p);
   if (sh.v === 'food') return foodSheet(p);
   if (sh.v === 'foodInfo') {

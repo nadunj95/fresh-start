@@ -353,7 +353,7 @@ function recoveryCard(date) {
     if (c.sick) why.push('sick');
     if (why.length && (tier === 'yellow' || tier === 'red')) h += '<p class="small fg2" style="margin:10px 0 0">Why: ' + esc(why.join('; ')) + '.</p>';
   } else {
-    h += '<div class="row" style="gap:12px"><span class="grow"><span class="eyebrow">Recovery</span><span class="small fg2" style="display:block;margin-top:4px">' + (date === t ? (hkAuto() ? 'No sleep or HRV for last night yet. Tap Sync to run Fresh Start Sync now.' : 'No sleep or HRV for last night yet. Run the Fresh Start Sync shortcut, then tap Sync.') : 'No Apple Health data for this day.') + '</span></span></div>';
+    h += '<div class="row" style="gap:12px"><span class="grow"><span class="eyebrow">Recovery</span><span class="small fg2" style="display:block;margin-top:4px">' + (date === t ? 'No sleep or HRV for last night yet. Tap Sync to run Fresh Start Health.' : 'No Apple Health data for this day.') + '</span></span></div>';
   }
   const goal = sleepGoal(), sl = R.sleepH;
   const chips = [];
@@ -428,7 +428,6 @@ function hkCalNote(c) {
 function hkSettingsCard() {
   const st = S.settings.hk;
   let h = '<div class="card stack"><div class="row"><span class="grow"><span style="font-weight:600;display:block">Apple Health</span><span class="small muted">' + (st && st.at ? hkSyncedLabel() + ' · ' + fmtShort(st.from) + ' – ' + fmtShort(st.to) : 'Not connected') + '</span></span><button class="btn ghost sm" data-a="push" data-v="health">' + (st && st.at ? 'Manage' : 'Set up') + '</button></div>';
-  if (hkAuto()) h += '<p class="xs muted" style="margin:-4px 0 0">' + esc(hkStatusLine()) + '</p>';
   h += '<div class="row"><span class="grow"><span style="font-weight:600;display:block">Sleep goal</span><span class="small muted">Sets the sleep score and tonight’s bedtime</span></span><div class="row" style="gap:6px"><button class="icon-btn" style="width:36px;height:36px" data-a="hkGoal" data-v="-0.25" aria-label="Less sleep">' + ic('minus') + '</button><span class="tnum" style="min-width:52px;text-align:center;font-weight:700">' + sleepGoal() + ' h</span><button class="icon-btn" style="width:36px;height:36px" data-a="hkGoal" data-v="0.25" aria-label="More sleep">' + ic('plus') + '</button></div></div>';
   return h + '</div>';
 }
@@ -445,7 +444,12 @@ const HKG_RUN = 'shortcuts://run-shortcut?name=' + encodeURIComponent(HKG_NAME);
 const HKG_NEW_TOKEN = 'https://github.com/settings/tokens/new?scopes=gist&description=Fresh%20Start%20Health';
 const HKG_API = 'https://api.github.com/gists';
 const HKG_PLACEHOLDER = '#fresh-start-sync v1|waiting for the first run of the Fresh Start Sync shortcut\n';
-const hkg = { busy: false, last: 0, state: '', msg: '', waitUntil: 0, timer: null };
+const hkg = { busy: false, last: 0, state: '', msg: '', waitUntil: 0, timer: null, awaitPaste: 0 };
+/* clipboard flow: the Fresh Start Health shortcut copies Health to the clipboard, the app pastes it on return */
+const HKS_NAME = 'Fresh Start Health';
+const HKS_READY = false; // true once sync/Fresh Start Health.shortcut is signed and deployed
+const HKS_FILE = 'sync/Fresh%20Start%20Health.shortcut';
+const HKS_RUN = 'shortcuts://run-shortcut?name=' + encodeURIComponent(HKS_NAME);
 function hkTok() { try { return localStorage.getItem(HKG_TOKEN_KEY) || ''; } catch (e) { return ''; } }
 function hkTokSet(v) { try { if (v) localStorage.setItem(HKG_TOKEN_KEY, v); else localStorage.removeItem(HKG_TOKEN_KEY); } catch (e) { /* storage blocked */ } }
 function hkAuto() { return !!(S.settings && S.settings.hkGist); }
@@ -458,6 +462,7 @@ function hkHeaders(tok, json) {
 }
 const hkTyping = () => { const a = document.activeElement; return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== 'file'); };
 function hkStatusLine() {
+  return ''; // the GitHub sync is switched off
   if (!hkAuto()) return '';
   const st = S.settings.hk, up = st && st.src === 'auto' && st.up;
   let s = 'Automatic sync · ' + (up ? 'last upload from Health ' + hkWhen(up) : 'no upload from the shortcut yet');
@@ -470,6 +475,7 @@ function hkStatusLine() {
 
 /* read the gist and import it if it changed. force skips the 10-minute throttle. */
 async function hkGistCheck(force) {
+  return { n: 0 }; // the GitHub sync is switched off
   const id = S.settings.hkGist;
   if (!id || hkg.busy || typeof fetch !== 'function' || document.hidden) return { n: 0 };
   if (!force && Date.now() - hkg.last < 10 * 60000) return { n: 0 };
@@ -511,21 +517,15 @@ async function hkGistCheck(force) {
 
 /* ------------------------------------------------------------------ UI: Health layer */
 const HK_STEPS = [
-  ['Open <b>Shortcuts</b> on your iPhone, tap <b>+</b>, and name the shortcut <b>Fresh Start Sync</b>.', ''],
-  ['Add <b>Find Health Samples</b>. Set <b>Type</b> to <b>Sleep</b>, add the filter <b>Start Date is in the last 14 days</b>, and leave the limit off.', ''],
+  ['Open <b>Shortcuts</b> on your iPhone, tap <b>+</b>, and name the shortcut <b>Fresh Start Health</b>.', ''],
+  ['Add <b>Find Health Samples</b>. Set <b>Type</b> to <b>Steps</b>, add the filter <b>Start Date is in the last 10 days</b>, turn on <b>Group By: Day</b>, and leave the limit off.', 'Grouping by day stops the iPhone and the Watch counting the same steps twice.'],
   ['Add <b>Add to Variable</b> and name the variable <b>Health</b>.', ''],
-  ['Repeat steps 2 and 3 for <b>Heart Rate Variability</b>, <b>Resting Heart Rate</b> and <b>Weight</b>.', 'Leave these ungrouped so each reading comes through.'],
-  ['Do the same for <b>Active Calories</b>, <b>Steps</b> and <b>Exercise Minutes</b>, with <b>Group By: Day</b> turned on.', 'Grouping by day stops the iPhone and the Watch counting the same steps twice.'],
+  ['Repeat steps 2 and 3 for <b>Active Calories</b> and <b>Exercise Minutes</b>, each with <b>Group By: Day</b> turned on.', ''],
+  ['Repeat steps 2 and 3 for <b>Sleep</b>, <b>Resting Heart Rate</b> and <b>Heart Rate Variability</b>, with the same 10-day filter.', 'Leave these ungrouped so each reading comes through. Add <b>Weight</b> the same way only if a smart scale writes to Health: a type with no data stops the shortcut.'],
   ['Add <b>Repeat with Each</b> and pick the <b>Health</b> variable.', ''],
   ['Inside the repeat, add a <b>Text</b> action and build this line from the Repeat Item’s details, with a <b>|</b> between each one:<div class="hkcode">Type|Start Date|End Date|Value|Unit</div>', 'Tap each date and set Date Format to ISO 8601. The app can also read the default format.'],
   ['After <b>End Repeat</b>, add <b>Combine Text</b> (Repeat Results, New Lines), then <b>Copy to Clipboard</b>.', ''],
-  ['Run it once and allow Health access for each type. Then each morning, run it and tap <b>Sync</b> on the Today card.', 'Keep the iPhone unlocked while it runs, because Health data is locked when the phone is.'],
-];
-const HK_AUTO_STEPS = [
-  'Tap <b>Run sync now</b> below once. The first run asks for Health access: turn on every type and tap <b>Allow</b>. Allow <b>api.github.com</b> and saving to iCloud Drive with <b>Always Allow</b>. A notification says when it worked; then come back here.',
-  'In Shortcuts, open <b>Automation</b> and tap <b>+</b>.',
-  'Choose <b>App</b>, pick an app you open every morning once you’re up (Weather, Mail or the news, say), and keep <b>Is Opened</b> ticked.',
-  'Choose <b>Run Immediately</b>, turn off <b>Notify When Run</b>, tap <b>Next</b> and pick <b>Fresh Start Sync</b>.',
+  ['Run it once from <b>Sync now</b> in this app and allow Health access for each type. Then each morning, tap <b>Sync now</b>, switch back and tap <b>Paste Health data</b>.', 'Keep the iPhone unlocked while it runs, because Health data is locked when the phone is.'],
 ];
 function hkNum0(n, done) {
   return '<span aria-hidden="true" style="flex:none;width:26px;height:26px;border-radius:13px;display:grid;place-items:center;font-weight:700;font-size:14px;' +
@@ -534,73 +534,55 @@ function hkNum0(n, done) {
 function hkStep(n, done, title, body, dim) {
   return '<div class="row" style="gap:12px;align-items:flex-start' + (dim ? ';opacity:.45' : '') + '">' + hkNum0(n, done) + '<div class="grow" style="min-width:0"><div style="font-weight:600">' + title + '</div>' + (body ? '<div style="margin-top:6px">' + body + '</div>' : '') + '</div></div>';
 }
-function hkShortcutBlock() {
-  const code = hkCode();
-  return '<p class="small fg2" style="margin:0 0 8px">Add the shortcut (no questions), then tap <b>Run sync now</b>. The app hands it this code each time, so there is nothing to paste.</p>' +
-    '<input class="field" id="hkCode" readonly value="' + esc(code) + '" aria-label="Setup code" style="font:13px ui-monospace,Menlo,monospace" onfocus="this.select()">' +
-    '<div class="row" style="gap:10px;margin-top:10px;flex-wrap:wrap"><button class="btn ghost sm" data-a="hkCopyCode">Copy code</button><a class="btn train sm" href="' + HKG_FILE + '" download="Fresh Start Sync.shortcut">Add the shortcut</a></div>' +
-    '<p class="xs muted" style="margin:8px 0 0">If the iPhone asks, tap <b>Download</b>, then open the file from Safari’s downloads (the ↓ button). In Shortcuts tap <b>Add Shortcut</b>. Delete any older Fresh Start Sync first so this one keeps the exact name.</p>';
-}
-function hkAutomationBlock() {
-  return '<ol class="hksteps" style="margin-top:0">' + HK_AUTO_STEPS.map((x) => '<li><div class="small">' + x + '</div></li>').join('') + '</ol>' +
-    '<p class="xs muted" style="margin:10px 0 0">Why an app and not an alarm or a time: Health keeps its data locked while the iPhone is locked, so automations that fire on the lock screen can’t read it. Opening an app means the phone is unlocked.</p>' +
-    '<p class="xs muted" style="margin:6px 0 0">No scale that writes to Health? The shortcut may end with “No Samples Found” for Weight. Everything else has already been sent by then; delete the Weight step at the bottom of the shortcut to stop the message.</p>' +
-    '<button class="btn train sm" style="margin-top:12px" data-a="hkRun">Run sync now</button>';
-}
-function hkAutoCard() {
-  const id = S.settings.hkGist, tok = hkTok();
-  let h = '<div class="card"><div class="row" style="gap:8px"><h3 class="h-sm grow">Automatic sync</h3>' + (id && tok ? '' + (S.settings.hk && S.settings.hk.src === 'auto' ? '<span class="small" style="color:var(--good);font-weight:600">On</span>' : '<span class="small muted" style="font-weight:600">Almost done</span>') + '' : '') + '</div>';
-  if (id && tok) {
-    const st = S.settings.hk, up = st && st.src === 'auto' && st.up;
-    h += '<div class="small fg2" style="margin-top:8px;display:grid;gap:4px"><div>Last upload from Health: <b>' + (up ? hkWhen(up) : 'none yet') + '</b></div><div>Last import here: <b>' + (st && st.at ? hkWhen(st.at) : 'none yet') + '</b></div>' +
-      '<div class="xs muted">' + esc(hkg.busy ? 'Checking GitHub…' : hkg.state === 'offline' ? 'Offline. The app checks again when you’re back online.' : hkg.state === 'error' ? 'Last check: ' + hkg.msg + '.' : hkg.last ? 'Checked ' + hkWhen(hkg.last) + '. The app checks each time you open it.' : 'The app checks each time you open it.') + '</div></div>';
-    if (up) {
-      h += '<div class="row" style="gap:10px;margin-top:12px;flex-wrap:wrap"><button class="btn train sm" data-a="hkRun">Run sync now</button><button class="btn ghost sm" data-a="hkCheck">Check now</button></div>';
-      h += '<details style="margin-top:14px"><summary class="small" style="font-weight:600;cursor:pointer">Setup code and automation</summary><div style="margin-top:10px">' + hkShortcutBlock() + '<div style="height:14px"></div>' + hkAutomationBlock() + '</div></details>';
-    } else { // connected, but nothing from the shortcut yet: keep the remaining steps open
-      h += '<div class="stack" style="margin-top:14px">' + hkStep(1, true, 'Make a GitHub token', '') + hkStep(2, true, 'Paste it here', '') +
-        hkStep(3, false, 'Add the shortcut', hkShortcutBlock()) + hkStep(4, false, 'Make it run by itself', hkAutomationBlock()) + '</div>';
-    }
-    h += '<div class="row" style="gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn ghost sm" data-a="hkGistOff" data-v="keep">' + (ui.hkOffArm === 'keep' ? 'Tap again to disconnect' : 'Disconnect') + '</button><button class="btn ghost sm" style="color:var(--bad)" data-a="hkGistOff" data-v="delete">' + (ui.hkOffArm === 'delete' ? 'Tap again to delete' : 'Disconnect and delete the gist') + '</button></div>';
-    return h + '</div>';
-  }
-  const other = !!id; // set up on another device: this one already reads the gist, but has no token
-  h += '<p class="small fg2" style="margin:6px 0 14px">' + (other ? 'Set up on another device: this one already picks up new Health data. Paste your token to show the setup code here too.' : 'Set it up once on this iPhone and Health data arrives by itself every morning. About 3 minutes, all on the phone.') + '</p><div class="stack">';
-  h += hkStep(1, false, 'Make a GitHub token', '<p class="small fg2" style="margin:0 0 10px">It lets the shortcut write to one private gist on your GitHub account. On GitHub, set <b>Expiration</b> to <b>No expiration</b>, leave only <b>gist</b> ticked, tap <b>Generate token</b> and copy it.</p><a class="btn ghost sm" href="' + HKG_NEW_TOKEN + '" target="_blank" rel="noopener">Open GitHub</a>');
-  h += hkStep(2, false, 'Paste it here', '<input class="field" id="hkTok" data-in="hkTok" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ghp_…" aria-label="GitHub token" value="' + esc(ui.hkTok || '') + '">' +
-    (ui.hkErr ? '<p class="small" style="color:var(--bad);margin:8px 0 0">' + esc(ui.hkErr) + '</p>' : '') +
-    '<button class="btn train sm" style="margin-top:10px" data-a="hkConnect"' + (ui.hkBusy ? ' disabled' : '') + '>' + (ui.hkBusy ? 'Connecting…' : other ? 'Save token' : 'Create my private gist') + '</button><p class="xs muted" style="margin:8px 0 0">The token stays on this device. It isn’t synced or sent anywhere except GitHub.</p>');
-  h += hkStep(3, false, 'Add the shortcut', '<p class="small fg2" style="margin:0">You’ll get a setup code to paste into it.</p>', true);
-  h += hkStep(4, false, 'Make it run by itself', '<p class="small fg2" style="margin:0">A personal automation runs it each morning.</p>', true);
-  return h + '</div></div>';
+function hkSetupCard() {
+  const hk = S.settings.hk, synced = !!(hk && hk.at);
+  let h = '<div class="card"><h3 class="h-sm">Connect in 3 steps</h3>';
+  if (synced) h += '<p class="small fg2" style="margin:6px 0 0">Last synced: <b>' + hkWhen(hk.at) + '</b></p>';
+  h += '<div class="stack" style="margin-top:14px">';
+  h += hkStep(1, synced, 'Add the shortcut', HKS_READY ? '<a class="btn train sm" href="' + HKS_FILE + '" download="Fresh Start Health.shortcut">Add Fresh Start Health</a>' +
+    '<p class="xs muted" style="margin:8px 0 0">If Safari asks, tap Download, then open it from the ↓ downloads button and tap Add Shortcut. Delete any old Fresh Start Sync shortcut first. If your iPhone won’t add it, build it by hand with the steps further down — it takes about 5 minutes.</p>'
+    : '<p class="small fg2" style="margin:0">Build <b>Fresh Start Health</b> by hand with the steps under <b>Build it by hand instead</b> below. It takes about 5 minutes, and because your iPhone builds it, nothing can be set up wrong. (A one-tap install link comes back here once Apple’s shortcut signing service is working again.)</p>');
+  h += hkStep(2, synced, 'Tap Sync now', '<button class="btn train sm" data-a="hkSync">Sync now</button>' +
+    '<p class="xs muted" style="margin:8px 0 0">The first run asks for Health access: turn on every type and tap Allow. Keep the iPhone unlocked while it runs.</p>');
+  h += hkStep(3, synced, 'Come back and paste', '<p class="xs muted" style="margin:0">Tap ‹ Fresh Start at the top left (or switch back), then Paste Health data. Do this each morning before your check-in; it takes about 10 seconds.</p>');
+  h += '</div>';
+  if (S.settings.hkGist) h += '<p class="xs muted" style="margin:14px 0 0">The old GitHub sync is switched off. You can delete the \'Fresh Start Health\' gist on GitHub and the old token whenever you like.</p>';
+  return h + '</div>';
 }
 function lHealth() {
-  const st = S.settings.hk, R = recovery(todayISO()), auto = hkAuto() && !!hkTok();
+  const st = S.settings.hk, R = recovery(todayISO());
   let h = '<div class="layer"><div class="wrap"><div class="lbar pad solid"><button class="icon-btn" data-a="pop" aria-label="Back">' + ic('back') + '</button><div class="h-sm">Apple Health</div><span style="width:44px"></span></div><div class="pad stack" style="margin-top:8px">';
-  h += '<div class="card"><div class="row" style="gap:12px"><span style="width:40px;height:40px;border-radius:10px;background:var(--fuel);color:#fff;display:grid;place-items:center;flex:none">' + ic('heart') + '</span><span class="grow"><span style="font-weight:600;display:block">' + (st && st.at ? 'Connected' : hkAuto() ? 'Waiting for the first sync' : 'Not connected yet') + '</span><span class="small muted">' + (st && st.at ? hkSyncedLabel() + ' · ' + st.n + ' days · ' + hkHasLabel(st.has) : hkAuto() ? 'Run Fresh Start Sync once on your iPhone' : 'Set up automatic sync below') + '</span></span></div>' +
-    '<div class="row" style="gap:10px;margin-top:14px;flex-wrap:wrap">' + (auto ? '<button class="btn train sm" data-a="hkRun">Run sync now</button>' : '<button class="btn ghost sm" data-a="hkSync">Sync from clipboard</button>') + '<button class="btn ghost sm" data-a="sheet" data-v="hkpaste">Paste or import a file</button></div>' +
+  h += '<div class="card"><div class="row" style="gap:12px"><span style="width:40px;height:40px;border-radius:10px;background:var(--fuel);color:#fff;display:grid;place-items:center;flex:none">' + ic('heart') + '</span><span class="grow"><span style="font-weight:600;display:block">' + (st && st.at ? 'Connected' : 'Not connected yet') + '</span><span class="small muted">' + (st && st.at ? hkSyncedLabel() + ' · ' + st.n + ' days · ' + hkHasLabel(st.has) : 'Set it up below') + '</span></span></div>' +
+    '<div class="row" style="gap:10px;margin-top:14px;flex-wrap:wrap">' + '<button class="btn train sm" data-a="hkSync">Sync now</button>' + '<button class="btn ghost sm" data-a="sheet" data-v="hkpaste">Paste or import a file</button></div>' +
     (R.score != null ? '<p class="small fg2" style="margin:12px 0 0">Today: recovery ' + R.score + ' · ' + esc(PUSH_TXT[R.tier][0]) + '.</p>' : '') + '</div>';
-  h += hkAutoCard();
+  h += hkSetupCard();
   h += '<div class="card"><h3 class="h-sm">What it does</h3><ul class="small fg2" style="margin:8px 0 0;padding-left:18px">' + [
     'Reads last night’s sleep, HRV and resting heart rate, and weighs them against your own 4-week normal.',
     'Compares this week’s training (sessions you log here plus Watch workouts) with your 4-week average.',
     'Sets today’s level: <b>Push</b>, <b>Train as written</b>, <b>Hold back</b> or <b>Recover</b>. Health can make a day stricter than your check-in, never looser, and your neck and back rules always apply.',
     'Fills in weigh-ins from a smart scale and daily steps, tells you when to get into bed tonight, and tells you whether calibration should come from steps or food.',
-  ].map((x) => '<li style="margin:5px 0">' + x + '</li>').join('') + '</ul><p class="xs muted" style="margin:10px 0 0">Apple doesn’t let web apps read Health directly, so the Fresh Start Sync shortcut sends it to a secret gist on your GitHub account and the app picks it up when you open it. HRV and resting-HR comparisons start after about a week of data.</p></div>';
-  h += '<details class="card"><summary style="font-weight:600;cursor:pointer">Set it up by hand instead (copy and paste)</summary><p class="small fg2" style="margin:8px 0 0">Build the shortcut yourself, run it each morning, and tap <b>Sync</b> to paste. Takes about 5 minutes.</p><ol class="hksteps">' + HK_STEPS.map(([a, b]) => '<li><div class="small">' + a + '</div>' + (b ? '<div class="xs muted" style="margin-top:3px">' + b + '</div>' : '') + '</li>').join('') + '</ol></details>';
+  ].map((x) => '<li style="margin:5px 0">' + x + '</li>').join('') + '</ul><p class="xs muted" style="margin:10px 0 0">Apple doesn’t let web apps read Health directly, so the Fresh Start Health shortcut copies it and you paste it into the app. HRV and resting-HR comparisons start after about a week of data.</p></div>';
+  h += '<details class="card"><summary style="font-weight:600;cursor:pointer">Build it by hand instead (5 minutes)</summary><p class="small fg2" style="margin:8px 0 0">Build the shortcut yourself, then run it from <b>Sync now</b> each morning and paste.</p><ol class="hksteps">' + HK_STEPS.map(([a, b]) => '<li><div class="small">' + a + '</div>' + (b ? '<div class="xs muted" style="margin-top:3px">' + b + '</div>' : '') + '</li>').join('') + '</ol></details>';
   h += '<div class="card"><h3 class="h-sm">Already use Health Auto Export?</h3><p class="small fg2" style="margin:6px 0 0">Its JSON export works too. Copy it or save it to Files, then use <b>Paste or import a file</b>.</p></div>';
   h += hkSettingsCard();
   if (st && st.at) h += '<div class="card"><div class="row"><span class="grow"><span style="font-weight:600;display:block">Remove Health data</span><span class="small muted">Clears every imported day. Your own logs stay.</span></span><button class="btn ghost sm" style="color:var(--bad)" data-a="hkClear">' + (ui.hkClearArm ? 'Tap again' : 'Remove') + '</button></div></div>';
-  return h + '<p class="xs muted" style="text-align:center;margin-top:4px">Health data is kept with your other logs, on this device and in your private sync. With automatic sync, the shortcut also keeps the last 14 days in a secret gist on your GitHub account: unlisted, readable only by someone with its link.</p></div></div></div>';
+  return h + '<p class="xs muted" style="text-align:center;margin-top:4px">Health data stays on your iPhone: the shortcut copies it to the clipboard and the app stores it with your other logs.</p></div></div></div>';
 }
 function hkHasLabel(has) {
   const N = { sleep: 'sleep', hrv: 'HRV', rhr: 'resting HR', kcal: 'energy', steps: 'steps', exmin: 'exercise', weight: 'weight', wk: 'workouts' };
   return (has || []).filter((k) => N[k]).map((k) => N[k]).join(', ') || 'no metrics';
 }
 function hkPasteSheet() {
-  return '<h2 class="h-lg">Import Health data</h2><p class="small fg2" style="margin:6px 0 12px">' + (ui.hkMsg ? esc(ui.hkMsg) + ' ' : '') + 'Paste what the Fresh Start Sync shortcut copied, or a Health Auto Export JSON.</p>' +
+  return '<h2 class="h-lg">Import Health data</h2><p class="small fg2" style="margin:6px 0 12px">' + (ui.hkMsg ? esc(ui.hkMsg) + ' ' : '') + 'Paste what the Fresh Start Health shortcut copied, or a Health Auto Export JSON.</p>' +
     '<textarea class="field" id="hkText" placeholder="Sleep Analysis|2026-10-17T23:10:00-04:00|…" style="min-height:140px;font-size:13px;font-family:ui-monospace,Menlo,monospace" aria-label="Health data">' + esc(ui.hkText || '') + '</textarea>' +
     '<div class="row" style="gap:10px;margin-top:12px"><button class="btn train grow" data-a="hkImportText">Import</button><label class="btn ghost" style="cursor:pointer">Choose file<input type="file" accept=".txt,.json,.csv,text/plain,application/json" data-in="hkfile" hidden></label></div>';
+}
+
+function hkBackSheet() {
+  return '<h2 class="h-lg">Bring in your Health data</h2><p class="small fg2" style="margin:6px 0 16px">Fresh Start Health copied your latest numbers.</p>' +
+    '<button class="btn train block" data-a="hkPasteNow">Paste Health data</button>' +
+    '<button class="btn ghost block" style="margin-top:10px" data-a="hkSync">Run Fresh Start Health again</button>' +
+    '<p class="xs muted" style="margin:12px 0 0;text-align:center">iOS will show a Paste button: tap it.</p>';
 }
 
 /* ------------------------------------------------------------------ actions */
@@ -610,19 +592,22 @@ function hkDone(r) {
   toast('Apple Health: ' + r.n + (r.n === 1 ? ' day' : ' days') + ' synced');
   return true;
 }
-/* the Today card's Sync: run the shortcut when automatic sync is set up, else read the clipboard */
-A.hkSync = async () => {
-  if (hkAuto() && hkTok()) { A.hkRun(); return; }
-  let text = '';
-  try { if (navigator.clipboard && navigator.clipboard.readText) text = await navigator.clipboard.readText(); } catch (e) { text = ''; }
-  if (text && hkDone(hkImport(text))) return;
-  ui.hkMsg = text ? 'The clipboard didn’t hold Health data. Run Fresh Start Sync first, or paste below.' : '';
-  openSheet('hkpaste');
+/* Sync now: run the Fresh Start Health shortcut; when the app comes back, hkBackSheet asks for the paste */
+A.hkSync = () => {
+  hkg.awaitPaste = Date.now() + 15 * 60000;
+  location.href = HKS_RUN;
 };
-A.hkRun = () => {
-  hkg.waitUntil = Date.now() + 3 * 60000; // re-check when the app comes back, and for a few minutes after
-  const code = hkCode(); // hand the shortcut its connection code; it keeps a copy for automations
-  location.href = HKG_RUN + (code ? '&input=text&text=' + encodeURIComponent(code) : '');
+/* the paste must be read inside this tap (iOS shows its own Paste button) */
+A.hkPasteNow = async () => {
+  const fail = () => {
+    ui.hkMsg = 'The clipboard didn’t hold Health data. Run Fresh Start Health again, or paste it below.';
+    openSheet('hkpaste');
+  };
+  let text = '';
+  try { text = await navigator.clipboard.readText(); } catch (e) { fail(); return; }
+  const r = hkImport(text || '');
+  if (r.n) { hkg.awaitPaste = 0; ui.hkMsg = ''; ui.sheet = null; render(); toast('Apple Health: ' + r.n + (r.n === 1 ? ' day' : ' days') + ' synced'); return; }
+  fail();
 };
 A.hkCheck = async () => {
   const before = hkg.last;
@@ -707,7 +692,7 @@ IN.hkfile = (el) => {
    On launch (once boot() has loaded the saved state), whenever the app comes back to the foreground
    (forced for a few minutes after "Run sync now"), when the network returns, and every so often while
    it stays open. hkGistCheck throttles itself to one check per 10 minutes otherwise. */
-document.addEventListener('visibilitychange', () => { if (!document.hidden) hkGistCheck(Date.now() < hkg.waitUntil); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() < hkg.awaitPaste) openSheet('hkback'); });
 window.addEventListener('pageshow', (e) => { if (e.persisted) hkGistCheck(false); });
 window.addEventListener('online', () => hkGistCheck(true));
 setInterval(() => hkGistCheck(false), 5 * 60000);
