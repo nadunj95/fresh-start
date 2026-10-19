@@ -451,6 +451,22 @@ function hkTrends() {
   if (a7 != null && a7 < goal - 0.5) h += '<p class="small fg2" style="margin:10px 2px 0">You’re averaging ' + fmtHM(goal - a7) + ' under your sleep goal. Short sleep raises hunger and cuts how much of the loss comes from fat, so it costs the cut as well as the lifts.</p>';
   return h + '</section>';
 }
+/* shared by Health trends and the weekly summary: a mini line (nulls break it) and a coloured ▲▼ change */
+function hkSpark(pts, col) {
+  const xs = pts.filter((p) => p != null);
+  if (xs.length < 2) return '<div class="grow"></div>';
+  const lo = Math.min(...xs), hi = Math.max(...xs), W = 100, Hh = 30, rng = hi - lo || 1, step = W / (pts.length - 1);
+  let path = '', pen = false, lastX = 0, lastY = 0;
+  pts.forEach((v, i) => { if (v == null) { pen = false; return; } lastX = i * step; lastY = 3 + (1 - (v - lo) / rng) * (Hh - 6); path += (pen ? 'L' : 'M') + lastX.toFixed(1) + ' ' + lastY.toFixed(1); pen = true; });
+  return '<svg class="grow" viewBox="0 0 ' + W + ' ' + Hh + '" preserveAspectRatio="none" style="height:34px;min-width:0;overflow:visible"><path d="' + path + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/><circle cx="' + lastX.toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="2.6" fill="' + col + '" vector-effect="non-scaling-stroke"/></svg>';
+}
+function hkChange(cur, base, dir, dec, unit) {
+  if (cur == null || base == null) return '<span class="xs muted">Not enough history</span>';
+  const dlt = cur - base, f = Math.pow(10, dec), shown = Math.round(dlt * f) / f, pct = base ? Math.abs(dlt / base) : 0;
+  if (!shown || pct < 0.02 || !dir) return '<span class="xs muted tnum">' + (shown ? (shown > 0 ? '+' : '−') + Math.abs(shown).toFixed(dec) : 'No change') + '</span>';
+  const good = dir * dlt > 0;
+  return '<span class="xs tnum" style="font-weight:600;color:var(--' + (good ? 'good' : 'bad') + ')">' + (dlt > 0 ? '▲ +' : '▼ −') + Math.abs(shown).toFixed(dec) + '</span>';
+}
 /* Health trends: longer-range view with change vs earlier period (range toggle 2w / 4w / 12w) */
 const HKP_RANGES = [14, 28, 84];
 function hkProgress() {
@@ -473,25 +489,11 @@ function hkProgress() {
     ['Exercise', (d) => H(d).exmin, (v) => Math.round(v), ' min', 1, 'var(--train)', 0],
     ['Weight', (d) => { const x = num(peek(d).weight); return x == null ? null : x; }, (v) => v.toFixed(1), ' ' + S.settings.unit, 0, 'var(--train)', 1]
   ];
-  const spark = (pts, col) => {
-    const xs = pts.filter((p) => p != null);
-    if (xs.length < 2) return '<div class="grow"></div>';
-    const lo = Math.min(...xs), hi = Math.max(...xs), W = 100, Hh = 30, rng = hi - lo || 1, step = W / (pts.length - 1);
-    let path = '', pen = false, lastX = 0, lastY = 0;
-    pts.forEach((v, i) => { if (v == null) { pen = false; return; } lastX = i * step; lastY = 3 + (1 - (v - lo) / rng) * (Hh - 6); path += (pen ? 'L' : 'M') + lastX.toFixed(1) + ' ' + lastY.toFixed(1); pen = true; });
-    return '<svg class="grow" viewBox="0 0 ' + W + ' ' + Hh + '" preserveAspectRatio="none" style="height:34px;min-width:0;overflow:visible"><path d="' + path + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/><circle cx="' + lastX.toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="2.6" fill="' + col + '" vector-effect="non-scaling-stroke"/></svg>';
-  };
   const buckets = (get, agg) => Array.from({ length: 14 }, (_, k) => {
     const xs = []; for (let j = 0; j < B; j++) { const v = get(addDays(t, -((13 - k) * B + (B - 1 - j)))); if (v != null) xs.push(v); }
     return xs.length ? agg(xs) : null;
   });
-  const change = (cur, base, dir, dec, unit) => {
-    if (cur == null || base == null) return '<span class="xs muted">Not enough history</span>';
-    const dlt = cur - base, f = Math.pow(10, dec), shown = Math.round(dlt * f) / f, pct = base ? Math.abs(dlt / base) : 0;
-    if (!shown || pct < 0.02 || !dir) return '<span class="xs muted tnum">' + (shown ? (shown > 0 ? '+' : '−') + Math.abs(shown).toFixed(dec) : 'No change') + '</span>';
-    const good = dir * dlt > 0;
-    return '<span class="xs tnum" style="font-weight:600;color:var(--' + (good ? 'good' : 'bad') + ')">' + (dlt > 0 ? '▲ +' : '▼ −') + Math.abs(shown).toFixed(dec) + '</span>';
-  };
+  const spark = hkSpark, change = hkChange;
   let rows = '', any = false;
   const avgOver = (get, from, to) => { const xs = []; for (let i = from; i < to; i++) { const v = get(addDays(t, -i)); if (v != null) xs.push(v); } return xs.length ? mean(xs) : null; }; // one reading is enough: VO2 max and weight are sparse
   M.forEach(([name, get, fmt, unit, dir, col, dec]) => {

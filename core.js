@@ -30,7 +30,7 @@ const fmtN = (n) => Math.round(n).toLocaleString('en-US');
 
 /* ------------------------------------------------------------------ state */
 const LS_KEY = 'fs2.state.v1';
-const blank = () => ({ v: 1, u: 0, settings: { name: 'Nadun', unit: 'lb', kcalAdj: 0, gate: {}, ambient: true, voice: true, sleepGoal: 7.5 }, days: {}, bench: {}, sunday: {}, quiz: [], waist: {} });
+const blank = () => ({ v: 1, u: 0, settings: { name: 'Nadun', unit: 'lb', kcalAdj: 0, gate: {}, ambient: true, voice: true, sleepGoal: 7.5 }, days: {}, bench: {}, sunday: {}, quiz: [], waist: {}, weeks: {} });
 let S = blank();
 const ui = { tab: 'today', date: todayISO(), stack: [], sheet: null, trainWeek: null };
 
@@ -97,6 +97,7 @@ function mergeState(o) {
     const r = o.days[date], l = S.days[date];
     if (r && (!l || (r.u || 0) > (l.u || 0))) { S.days[date] = r; changed = true; }
   });
+  if (o.weeks && mergeWeeks(o.weeks)) changed = true;
   if ((o.u || 0) > (S.u || 0)) { ['settings', 'bench', 'sunday', 'quiz', 'waist'].forEach((k) => { if (o[k] !== undefined) S[k] = o[k]; }); S.u = o.u; changed = true; }
   return changed;
 }
@@ -164,6 +165,8 @@ const Cloud = {
       snap.docs.forEach((doc) => {
         const body = doc.data() || {};
         if (doc.id === 'meta') {
+          if (body.weeks && mergeWeeks(body.weeks)) changed = true;
+          if (Object.keys(S.weeks || {}).some((k) => !body.weeks || !body.weeks[k] || (body.weeks[k].at || 0) < S.weeks[k].at)) this.dirty.add('meta'); // snapshots only this device has
           if ((body.u || 0) > (S.u || 0)) { ['settings', 'bench', 'sunday', 'quiz', 'waist'].forEach((k) => { if (body[k] !== undefined) S[k] = body[k]; }); S.u = body.u; changed = true; }
           else if (first && (body.u || 0) > (this.bootU || 0)) {
             ['bench', 'sunday', 'waist'].forEach((k) => { if (body[k]) { const o = {}; o[k] = body[k]; if (fillMissing(S, o)) changed = true; } });
@@ -199,7 +202,7 @@ const Cloud = {
     for (const k of keys) {
       try {
         let body;
-        if (k === 'meta') body = { u: S.u || Date.now(), settings: S.settings, bench: S.bench, sunday: S.sunday, quiz: S.quiz, waist: S.waist };
+        if (k === 'meta') body = { u: S.u || Date.now(), settings: S.settings, bench: S.bench, sunday: S.sunday, quiz: S.quiz, waist: S.waist, weeks: S.weeks || {} };
         else {
           const mon = k.slice(2), days = {};
           for (let i = 0; i < 7; i++) { const d = addDays(mon, i); if (S.days[d]) days[d] = S.days[d]; }
@@ -598,6 +601,80 @@ function weights() { return Object.keys(S.days).filter((d) => num(S.days[d].weig
 function avg7(date) {
   const xs = []; for (let i = 0; i < 7; i++) { const w = num(peek(addDays(date, -i)).weight); if (w != null) xs.push(w); }
   return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+}
+/* ------------------------------------------------------------------ weekly summary
+   One summary per plan week (Mon–Sun). Computed from S.days, so the live week is always fresh; once a week
+   has ended it is also frozen into S.weeks[w] (saved and synced with the meta doc, newest snapshot wins)
+   and used as the fallback if that week's day data is ever missing. */
+const WEEK_N = 13;
+/* [key, name, unit ('wt' = weight unit), good direction (+1 higher / -1 lower / 0 neutral), decimals, colour] */
+const WK_MET = [
+  ['weight', 'Weight', 'wt', -1, 1, 'var(--train)'], ['sess', 'Sessions', '', 1, 0, 'var(--train)'],
+  ['wkN', 'Health workouts', '', 1, 0, 'var(--train)'], ['wkMin', 'Workout minutes', ' min', 1, 0, 'var(--train)'],
+  ['exmin', 'Exercise / day', ' min', 1, 0, 'var(--train)'], ['kcalAct', 'Active energy / day', ' kcal', 1, 0, 'var(--fuel)'],
+  ['steps', 'Steps / day', '', 1, 0, 'var(--train)'], ['sleep', 'Sleep / night', ' h', 1, 1, 'var(--mind)'],
+  ['hrv', 'HRV', ' ms', 1, 0, 'var(--mind)'], ['rhr', 'Resting HR', ' bpm', -1, 0, 'var(--fuel)'],
+  ['whr', 'Walking HR', ' bpm', -1, 0, 'var(--fuel)'], ['vo2', 'VO2 max', '', 1, 1, 'var(--good)'],
+  ['resp', 'Breathing rate', ' /min', -1, 1, 'var(--mind)'], ['spo2', 'Blood oxygen', '%', 1, 0, 'var(--mind)'],
+  ['rec', 'Recovery score', '', 1, 0, 'var(--good)'], ['kcal', 'Calories / day', ' kcal', 0, 0, 'var(--fuel)'],
+  ['adh', 'Calories on target', '%', 1, 0, 'var(--fuel)'], ['prot', 'Protein / day', ' g', 1, 0, 'var(--fuel)'],
+  ['protDays', 'Protein days hit', '', 1, 0, 'var(--fuel)'], ['aiScore', 'Food score', '/10', 1, 1, 'var(--fuel)'],
+  ['neck', 'Neck pain', '/10', -1, 1, 'var(--bad)'], ['back', 'Low back pain', '/10', -1, 1, 'var(--warn)'],
+  ['stress', 'Stress', '/10', -1, 1, 'var(--mind)'], ['mind', 'Mind minutes', ' min', 1, 0, 'var(--mind)'],
+];
+function weekCompute(w) {
+  const ws = weekStart(w), we = addDays(ws, 6), t = todayISO(), last = we < t ? we : t;
+  const acc = {}, put = (k, v) => { if (v != null && isFinite(v)) (acc[k] = acc[k] || []).push(v); };
+  const mean = (k) => (acc[k] && acc[k].length ? acc[k].reduce((a, b) => a + b, 0) / acc[k].length : null);
+  let sess = 0, sessT = 0, days = 0, wkN = 0, wkMin = 0, mind = 0, protDays = 0, adhOk = 0, kd = 0, vo2 = null, hasMind = false;
+  for (let i = 0; i < 7; i++) {
+    const dd = addDays(ws, i), d = peek(dd), h = hkOf(dd) || {};
+    plan(dd).sessions.filter(isTraining).forEach((s) => { sessT++; if (dd <= t && sessionDone(dd, s.sid)) sess++; });
+    if (dd > last) continue;
+    if (Object.keys(d).length > 1) days++;
+    const tot = totals(dd), tg = targets(dd);
+    if (tot.kcal > 0) { kd++; put('kcal', tot.kcal); if (Math.abs(tot.kcal - tg.kcal) <= tg.kcal * 0.1) adhOk++; if (tot.p > 0) put('prot', tot.p); if (tot.p >= tg.p[0]) protDays++; }
+    const sc = (d.meals || []).map((m) => m.ai && m.ai.score).filter((x) => x != null); if (sc.length) put('aiScore', sc.reduce((a, b) => a + b, 0) / sc.length);
+    ['steps', 'exmin', 'hrv', 'rhr', 'whr', 'resp', 'spo2'].forEach((k) => put(k, h[k]));
+    put('kcalAct', h.kcal); put('sleep', sleepH(dd)); if (h.vo2 != null) vo2 = h.vo2;
+    (h.wk || []).forEach((x) => { wkN++; wkMin += x.min || 0; });
+    if (hkOf(dd) && (sleepH(dd) != null || h.hrv != null)) put('rec', recovery(dd).score);
+    const ch = d.chk || {}; ['neck', 'back', 'stress'].forEach((k) => put(k, ch[k]));
+    (d.mind || []).forEach((x) => { mind += x.min || 0; hasMind = true; });
+  }
+  const m = { weight: avg7(last), sess: sessT ? sess : null, wkN: wkN || null, wkMin: wkMin || null, vo2, mind: hasMind ? Math.round(mind) : null, adh: kd ? Math.round(adhOk / kd * 100) : null, protDays: kd ? protDays : null };
+  ['exmin', 'kcalAct', 'steps', 'sleep', 'hrv', 'rhr', 'whr', 'resp', 'spo2', 'rec', 'kcal', 'prot', 'aiScore', 'neck', 'back', 'stress'].forEach((k) => { m[k] = mean(k); });
+  if (m.sess === 0 && days === 0) m.sess = null;
+  return { w, from: ws, to: we, days, kd, sessT, m };
+}
+const wkCache = { key: '', v: {} };
+function weekSummary(w) {
+  const key = (S.savedAt || 0) + '|' + todayISO();
+  if (wkCache.key !== key) { wkCache.key = key; wkCache.v = {}; }
+  if (wkCache.v[w]) return wkCache.v[w];
+  let r = weekCompute(w);
+  const snap = (S.weeks || {})[w];
+  if (snap && r.days === 0 && r.m.weight == null) r = Object.assign({}, snap, { snap: true });
+  return (wkCache.v[w] = r);
+}
+function mergeWeeks(o) {
+  S.weeks = S.weeks || {}; let ch = false;
+  Object.keys(o || {}).forEach((k) => { if (o[k] && (!S.weeks[k] || (o[k].at || 0) > (S.weeks[k].at || 0))) { S.weeks[k] = o[k]; ch = true; } });
+  return ch;
+}
+/* freeze every finished week; refresh a snapshot when a late edit changed it */
+let freezeKey = '';
+function freezeWeeks() {
+  const key = (S.savedAt || 0) + '|' + todayISO(); if (key === freezeKey) return;
+  S.weeks = S.weeks || {}; const t = todayISO(); let ch = false;
+  for (let w = 1; w <= WEEK_N; w++) {
+    if (addDays(weekStart(w), 6) >= t) break;
+    const r = weekCompute(w); if (r.days === 0 && r.m.weight == null) continue;
+    const old = S.weeks[w];
+    if (!old || JSON.stringify(old.m) !== JSON.stringify(r.m)) { S.weeks[w] = { w, from: r.from, to: r.to, days: r.days, kd: r.kd, sessT: r.sessT, m: r.m, at: Date.now() }; ch = true; }
+  }
+  if (ch) { Cloud.dirty.add('meta'); lsSet(); Cloud.schedule(); }
+  freezeKey = (S.savedAt || 0) + '|' + t;
 }
 function targetAt(date) {
   const T = D.TARGET_PATH;

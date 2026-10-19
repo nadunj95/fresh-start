@@ -30,7 +30,7 @@ function render() {
 }
 /* pushed screens scroll inside their .wrap; the .layer shell stays still so pinned bars stay pinned */
 function layerScroller(l) { return (l && l.querySelector(':scope > .wrap')) || l; }
-function afterRender() { if (typeof playerAfterRender === 'function') playerAfterRender(); }
+function afterRender() { if (typeof playerAfterRender === 'function') playerAfterRender(); if (ui.tab === 'progress') wkRailFix(); }
 function tabbar() {
   const T = [['today', 'Today'], ['train', 'Train'], ['fuel', 'Fuel'], ['mind', 'Mind'], ['progress', 'Progress']];
   return '<nav class="tabbar" aria-label="Sections"><div class="in">' + T.map(([id, n]) =>
@@ -529,22 +529,13 @@ function vProgress() {
   h += '<section class="pad section" style="margin-top:16px"><div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="eyebrow">7-day average</div><div class="big-num tnum" style="margin-top:6px">' + (a != null ? a.toFixed(1) : '—') + '<span class="muted" style="font-size:22px"> ' + u + '</span></div><div class="small fg2" style="margin-top:4px">Target today ' + tg.t.toFixed(1) + ' (' + tg.lo.toFixed(1) + '–' + tg.hi.toFixed(1) + ')' + (a != null ? ' · ' + (first - a >= 0 ? '−' : '+') + Math.abs(first - a).toFixed(1) + ' since start' : '') + '</div></div>' +
     (status ? '<span class="chip ' + (status === 'above' ? 'warn' : status === 'early' ? '' : 'good') + '">' + ({ on: 'On track', ahead: 'Ahead', above: 'Above range', early: 'Week 1: judge from Week 2' })[status] + '</span>' : '') + '</div>' + weightChart() +
     '<div class="row" style="gap:10px;margin-top:14px"><label class="grow"><span class="lbl">Weigh-in, ' + esc(fmtD(date)) + '</span><input class="field" inputmode="decimal" id="wIn" data-in="weight" value="' + esc(d.weight || '') + '" placeholder="e.g. 206.4"></label><label style="width:120px"><span class="lbl">Steps</span><input class="field" inputmode="numeric" id="stepsIn" data-in="steps" value="' + esc(d.steps || '') + '" placeholder="10,000"></label></div></div></section>';
+  freezeWeeks();
+  h += wkSection() + wkReport();
   const c = calibration(t);
   h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Calibration</h2><span class="small muted">Sunday ' + fmtShort(c.sun) + '</span></div>' + (c.rate == null ? '<div class="card small fg2">Needs two weeks of weigh-ins to compare 7-day averages. Weigh in every morning.</div>' :
     '<div class="card"><div class="row" style="justify-content:space-between"><div><div class="big-num tnum" style="font-size:40px">' + (c.rate >= 0 ? '−' : '+') + Math.abs(c.rate).toFixed(1) + '<span class="muted" style="font-size:20px"> lb/wk</span></div></div><span class="chip ' + c.tone + '">Goal 0.8–1.4</span></div><p class="small fg2" style="margin:10px 0 0">' + esc(c.rec) + '</p>' +
     hkCalNote(c) + (c.act ? '<button class="btn fuel sm" style="margin-top:12px" data-a="kcalAdj" data-v="' + c.act + '">' + (c.act > 0 ? 'Add' : 'Cut') + ' 150 kcal a day</button>' : '') + '</div>') +
     (S.settings.kcalAdj ? '<p class="small muted" style="margin:8px 2px 0">Current adjustment: ' + (S.settings.kcalAdj > 0 ? '+' : '') + S.settings.kcalAdj + ' kcal a day. <button style="color:var(--fuel);font-weight:600" data-a="kcalAdj" data-v="reset">Reset</button></p>' : '') + '</section>';
-
-  // this week
-  const mon = mondayOf(t); let sess = 0, sessT = 0, prot = 0, sleep = [], mm = 0;
-  for (let i = 0; i < 7; i++) {
-    const dd = addDays(mon, i), P = plan(dd);
-    P.sessions.filter(isTraining).forEach((s) => { sessT++; if (sessionDone(dd, s.sid)) sess++; });
-    if (totals(dd).p >= 200) prot++;
-    const ch = peek(dd).chk; if (ch && ch.sleep) sleep.push(ch.sleep);
-    mm += (peek(dd).mind || []).reduce((x, y) => x + (y.min || 0), 0);
-  }
-  h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">This week</h2></div><div class="kv"><div><div class="v tnum">' + sess + '<span class="muted" style="font-size:16px">/' + sessT + '</span></div><div class="k">Sessions</div></div><div><div class="v tnum">' + prot + '<span class="muted" style="font-size:16px">/7</span></div><div class="k">Protein days</div></div><div><div class="v tnum">' + Math.round(mm) + '</div><div class="k">Mind minutes</div></div></div></section>';
 
   h += hkTrends();
   h += hkProgress();
@@ -586,6 +577,127 @@ function vProgress() {
   h += '<section class="pad section"><button class="li card" style="padding:14px" data-a="push" data-v="settings"><span class="ico">' + ic('gear') + '</span><span class="grow"><span class="t" style="display:block">Settings and backup</span><span class="s" style="display:block">' + syncLabel() + '</span></span>' + ic('next').replace('<svg', '<svg width="18" height="18"') + '</button></section>';
   return h;
 }
+/* ------------------------------------------------------------------ PROGRESS: weekly summary + 13-week report */
+const wkDef = (k) => WK_MET.find((x) => x[0] === k);
+const WK_COUNT = ['sess', 'wkN', 'wkMin', 'protDays', 'mind']; // per-week totals: shown as totals in the report, not start-vs-now
+const wkCur = () => clamp(weekOf(todayISO()), 1, WEEK_N);
+const wkUnitOf = (def) => (def[2] === 'wt' ? ' ' + S.settings.unit : def[2]);
+const wkNum = (def, v) => (v == null ? '–' : def[4] ? v.toFixed(def[4]) : fmtN(v));
+function wkSeries(k) { const c = wkCur(); return Array.from({ length: WEEK_N }, (_, i) => (i + 1 > c ? null : weekSummary(i + 1).m[k])); }
+function wkPrev(k, w) { for (let i = w - 1; i >= 1; i--) { const v = weekSummary(i).m[k]; if (v != null) return v; } return null; }
+function wkValHTML(def, v, s) {
+  const u = def[0] === 'sess' ? '/' + (s ? s.sessT : '') : def[0] === 'protDays' ? '/7' : wkUnitOf(def);
+  return wkNum(def, v) + (v == null || !u ? '' : '<span class="muted" style="font-size:12px;font-weight:500">' + u + '</span>');
+}
+/* plain-English verdict for a week */
+function wkHeadline(w) {
+  const s = weekSummary(w), m = s.m, live = addDays(weekStart(w), 6) >= todayISO();
+  if (!s.days && m.weight == null) return live ? 'Nothing logged yet this week.' : 'No data for this week.';
+  const bits = [];
+  if (m.sess != null && s.sessT) bits.push(m.sess + '/' + s.sessT + ' sessions');
+  // [key, label, smallest change worth mentioning, how to say it]
+  const C = [['sleep', 'sleep', 0.15, (d) => Math.round(Math.abs(d) * 60) + ' min'], ['rhr', 'resting HR', 1, (d) => Math.round(Math.abs(d)) + ' bpm'], ['hrv', 'HRV', 3, (d) => Math.round(Math.abs(d)) + ' ms'],
+    ['weight', 'weight', 0.5, (d) => Math.abs(d).toFixed(1) + ' ' + S.settings.unit], ['steps', 'steps', 800, (d) => fmtN(Math.abs(d)) + ' a day'], ['protDays', 'protein days', 1, (d) => Math.abs(d)],
+    ['back', 'back pain', 1, (d) => Math.abs(d).toFixed(1)], ['neck', 'neck pain', 1, (d) => Math.abs(d).toFixed(1)], ['stress', 'stress', 1, (d) => Math.abs(d).toFixed(1)], ['vo2', 'VO2 max', 0.5, (d) => Math.abs(d).toFixed(1)]];
+  const found = [];
+  C.forEach(([k, n, min, say]) => { const p = wkPrev(k, w); if (m[k] == null || p == null) return; const d = m[k] - p; if (Math.abs(d) >= min) found.push({ sc: Math.abs(d) / min, t: n + (d > 0 ? ' up ' : ' down ') + say(d) }); });
+  found.sort((a, b) => b.sc - a.sc).slice(0, 3).forEach((x) => bits.push(x.t));
+  let good = 0, bad = 0, cmp = false;
+  WK_MET.forEach((def) => { const p = wkPrev(def[0], w), v = m[def[0]]; if (v == null || p == null) return; cmp = true; const d = v - p; if (def[3] && p && Math.abs(d / p) >= 0.02) { if (def[3] * d > 0) good++; else bad++; } });
+  const ratio = m.sess != null && s.sessT ? m.sess / s.sessT : 0.7;
+  const word = live ? 'So far' : ratio >= 0.8 && good >= bad ? 'Strong week' : bad > good + 1 ? 'Tougher week' : ratio >= 0.6 ? 'Solid week' : 'Light week';
+  return word + (bits.length ? ': ' + bits.join(', ') : '') + '.' + (cmp ? '' : ' Comparisons start next week.');
+}
+function wkSection() {
+  const t = todayISO(), cur = wkCur(), sel = clamp(ui.wkSel || cur, 1, cur), s = weekSummary(sel), m = s.m;
+  let h = '<section class="section"><div class="sec-h pad"><h2 class="h-md">Weekly summary</h2><span class="small muted">' + esc(fmtShort(s.from)) + ' – ' + esc(fmtShort(s.to)) + '</span></div>';
+  h += '<div class="rail pad" id="wkRail" style="gap:8px;margin-bottom:10px">' + Array.from({ length: WEEK_N }, (_, i) => {
+    const w = i + 1, on = w === sel, off = w > cur;
+    return '<button class="chip' + (on ? ' train' : '') + '" style="height:34px;padding:0 14px;font-size:15px' + (on ? ';box-shadow:inset 0 0 0 1.5px var(--train)' : w === cur ? ';box-shadow:inset 0 0 0 1.5px var(--line)' : '') + (off ? ';opacity:.35' : '') + '"' + (off ? ' disabled' : '') + ' data-a="wkSel" data-v="' + w + '" aria-pressed="' + on + '" aria-label="Week ' + w + (w === cur ? ', current' : '') + '">W' + w + '</button>';
+  }).join('') + '</div><div class="pad"><div class="card">';
+  h += '<div class="row" style="justify-content:space-between;align-items:center"><div class="eyebrow">Week ' + sel + ' · ' + esc(phaseOf(sel).name) + '</div><span class="chip' + (sel === cur && addDays(weekStart(sel), 6) >= t ? '' : ' good') + '">' + (sel === cur && addDays(weekStart(sel), 6) >= t ? 'In progress' : 'Complete') + '</span></div>';
+  h += '<p class="small" style="margin:8px 0 14px;font-weight:600">' + esc(wkHeadline(sel)) + '</p>';
+  let cells = '', cmp = false;
+  WK_MET.forEach((def) => {
+    const k = def[0], v = m[k], ser = wkSeries(k);
+    if (!ser.some((x) => x != null)) return;
+    const p = wkPrev(k, sel), partial = WK_COUNT.includes(k) && sel === cur && addDays(weekStart(sel), 6) >= t, chg = partial ? '<span class="xs muted">So far</span>' : v != null && p != null ? (cmp = true, hkChange(v, p, def[3], def[4])) : '<span class="xs muted">' + (v == null ? 'No data' : 'Baseline') + '</span>';
+    cells += '<div style="background:var(--fill);border-radius:14px;padding:10px 12px;min-width:0"><div class="xs muted">' + esc(def[1]) + '</div><div class="row" style="justify-content:space-between;align-items:baseline;gap:6px;margin-top:2px"><div class="h-md tnum">' + wkValHTML(def, v, s) + '</div><div style="text-align:right;white-space:nowrap">' + chg + '</div></div><div class="row" style="margin-top:4px">' + hkSpark(ser, def[5]) + '</div></div>';
+  });
+  h += cells ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + cells + '</div>' : '';
+  if (cells && !cmp) h += '<p class="xs muted" style="margin:10px 0 0">Comparisons start next week.</p>';
+  else if (cells) h += '<p class="xs muted" style="margin:10px 0 0">Change is against the last week with data. Green means moving the right way.</p>';
+  return h + '</div></div></section>';
+}
+/* start vs now for every metric with data: first week that has it → latest week that has it */
+function wkRows() {
+  const rows = [];
+  WK_MET.forEach((def) => {
+    if (WK_COUNT.includes(def[0])) return;
+    const ser = wkSeries(def[0]); let fi = -1, li = -1;
+    ser.forEach((v, i) => { if (v != null) { if (fi < 0) fi = i; li = i; } });
+    if (fi < 0) return;
+    const first = ser[fi], last = ser[li], d = last - first, pct = first ? d / Math.abs(first) * 100 : 0;
+    rows.push({ def, first, last, one: fi === li, d, pct, score: def[3] ? def[3] * pct : null });
+  });
+  return rows;
+}
+function wkTotals() {
+  const c = wkCur(); let done = 0, planned = 0, wk = 0, mind = 0;
+  for (let w = 1; w <= c; w++) { const s = weekSummary(w); done += s.m.sess || 0; planned += s.m.sess != null ? s.sessT : 0; wk += s.m.wkN || 0; mind += s.m.mind || 0; }
+  return { done, planned, wk, mind };
+}
+function wkWeightLine() {
+  const ser = wkSeries('weight'), ws = weights(), start = ws.length ? ws[0].w : null, now = ser.filter((x) => x != null).pop();
+  if (start == null || now == null) return null;
+  const g = D.GOAL.to, u = S.settings.unit, d = now - start;
+  return { start, now, d, txt: now <= g[1] ? (now < g[0] ? 'Under' : 'Inside') + ' your goal range' : (now - g[1]).toFixed(1) + ' ' + u + ' above the top of your goal range', rng: g[0] + '–' + g[1] };
+}
+function wkChgHTML(r) {
+  if (r.one) return '<span class="xs muted">Baseline</span>';
+  const dec = r.def[4], shown = Math.round(r.d * Math.pow(10, dec)) / Math.pow(10, dec);
+  if (!shown || Math.abs(r.pct) < 2 || !r.def[3]) return '<span class="xs muted tnum">' + (shown ? (shown > 0 ? '+' : '−') + Math.abs(shown).toFixed(dec) : 'No change') + '</span>';
+  const col = 'var(--' + (r.def[3] * r.d > 0 ? 'good' : 'bad') + ')';
+  return '<div class="xs tnum" style="font-weight:600;color:' + col + '">' + (r.d > 0 ? '▲ +' : '▼ −') + Math.abs(shown).toFixed(dec) + '</div><div class="xs tnum" style="color:' + col + '">' + (r.pct > 0 ? '+' : '−') + Math.abs(r.pct).toFixed(1) + '%</div>';
+}
+function wkReport() {
+  const t = todayISO(), cur = wkCur(), final = t >= addDays(weekStart(WEEK_N), 6);
+  let rows = wkRows();
+  if (final) rows = rows.slice().sort((a, b) => (b.score == null ? -1e9 : b.score) - (a.score == null ? -1e9 : a.score));
+  const tot = wkTotals(), wl = wkWeightLine(), u = S.settings.unit;
+  let h = '<section class="pad section"><div class="sec-h"><h2 class="h-md">' + (final ? 'Your 13 weeks' : '13-week report') + '</h2><button class="link" data-a="wkShare">Share</button></div><div class="card">';
+  if (final) h += '<div class="eyebrow">Final report · ' + esc(fmtShort(D.START)) + ' – ' + esc(fmtShort(addDays(weekStart(WEEK_N), 6))) + '</div>';
+  else {
+    const pctDone = Math.round(clamp(daysBetween(D.START, t) + 1, 0, 91) / 91 * 100);
+    h += '<div class="row" style="justify-content:space-between"><div class="eyebrow">Week ' + cur + ' of ' + WEEK_N + '</div><span class="xs muted tnum">' + pctDone + '% done</span></div><div class="bar" style="margin-top:8px"><i style="width:' + pctDone + '%;background:var(--train)"></i></div>';
+  }
+  if (wl) h += '<div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:14px"><div><div class="big-num tnum" style="font-size:40px">' + (Math.abs(wl.d) < 0.05 ? '' : wl.d < 0 ? '−' : '+') + Math.abs(wl.d).toFixed(1) + '<span class="muted" style="font-size:20px"> ' + u + '</span></div><div class="small fg2">' + wl.start.toFixed(1) + ' → ' + wl.now.toFixed(1) + ' · goal ' + wl.rng + '</div></div><span class="chip ' + (wl.now <= D.GOAL.to[1] ? 'good' : 'warn') + '">' + esc(wl.txt) + '</span></div>';
+  h += '<div class="kv" style="margin-top:14px"><div><div class="v tnum">' + tot.done + '<span class="muted" style="font-size:16px">' + (tot.planned ? '/' + tot.planned : '') + '</span></div><div class="k">Sessions</div></div><div><div class="v tnum">' + tot.wk + '</div><div class="k">Workouts</div></div><div><div class="v tnum">' + fmtN(tot.mind) + '</div><div class="k">Mind min</div></div></div>';
+  if (!rows.length) h += '<p class="small fg2" style="margin:14px 0 0">Comparisons start next week. Log food, weight and check-ins and sync Health to fill this in.</p>';
+  else {
+    h += '<div class="sec-h" style="margin:16px 0 8px"><div class="small fg2" style="font-weight:600">' + (final ? 'Biggest wins first' : 'Week 1 baseline → latest week') + '</div></div><div class="stack">' + rows.map((r) =>
+      '<div class="row" style="gap:10px"><div class="grow" style="min-width:0"><div class="small">' + esc(r.def[1]) + '</div><div class="xs muted tnum">' + (r.one ? wkNum(r.def, r.first) : wkNum(r.def, r.first) + ' → ' + wkNum(r.def, r.last)) + esc(wkUnitOf(r.def)) + '</div></div><div style="text-align:right;flex:none">' + wkChgHTML(r) + '</div></div>').join('') + '</div>';
+    if (rows.every((r) => r.one)) h += '<p class="xs muted" style="margin:12px 0 0">Comparisons start next week.</p>';
+  }
+  return h + '</div></section>';
+}
+function wkReportText() {
+  const final = todayISO() >= addDays(weekStart(WEEK_N), 6), u = S.settings.unit, wl = wkWeightLine();
+  let rows = wkRows(); if (final) rows = rows.slice().sort((a, b) => (b.score == null ? -1e9 : b.score) - (a.score == null ? -1e9 : a.score));
+  const tot = wkTotals(), L = ['Fresh Start · ' + (final ? 'my 13 weeks' : 'week ' + wkCur() + ' of ' + WEEK_N)];
+  if (wl) L.push('Weight: ' + wl.start.toFixed(1) + ' → ' + wl.now.toFixed(1) + ' ' + u + ' (' + (wl.d <= 0 ? '−' : '+') + Math.abs(wl.d).toFixed(1) + '), goal ' + wl.rng);
+  L.push('Sessions: ' + tot.done + (tot.planned ? ' of ' + tot.planned : '') + ' · Workouts: ' + tot.wk + ' · Mind minutes: ' + fmtN(tot.mind));
+  rows.forEach((r) => { if (r.def[0] === 'weight') return; const dec = r.def[4], un = wkUnitOf(r.def); L.push(r.def[1] + ': ' + (r.one ? wkNum(r.def, r.first) + un : wkNum(r.def, r.first) + ' → ' + wkNum(r.def, r.last) + un + ' (' + (r.d >= 0 ? '+' : '−') + Math.abs(r.d).toFixed(dec) + ', ' + (r.pct >= 0 ? '+' : '−') + Math.abs(r.pct).toFixed(1) + '%)')); });
+  return L.join('\n');
+}
+A.wkSel = (el) => { ui.wkSel = +el.dataset.v; render(); };
+A.wkShare = async () => {
+  const text = wkReportText();
+  try { if (navigator.share) { await navigator.share({ title: 'Fresh Start report', text }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(text); toast('Report copied'); } catch (e) { toast('Sharing is not available here'); }
+};
+function wkRailFix() { const r = $('#wkRail'), on = r && $('.chip.train', r); if (on) r.scrollLeft = on.offsetLeft - r.offsetLeft - 16; }
+
 function storageDetail() {
   const n = Object.keys(S.days).filter((d) => Object.keys(S.days[d]).length > 1).length;
   const t = S.savedAt ? new Date(S.savedAt) : null;
