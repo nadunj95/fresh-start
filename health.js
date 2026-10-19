@@ -60,6 +60,11 @@ function hkKind(t) {
   if (/sleep/.test(t)) return 'sleep';
   if (/variab|hrv/.test(t)) return 'hrv';
   if (/resting/.test(t)) return 'rhr';
+  if (/walking/.test(t) && /heart/.test(t)) return 'whr';
+  if (/respirat/.test(t)) return 'resp';
+  if (/oxygen|spo2|saturation/.test(t)) return 'spo2';
+  if (/vo2|cardio fitness/.test(t)) return 'vo2';
+  if (/heart ?rate/.test(t)) return 'hr';
   if (/active ?(energy|calories)/.test(t)) return 'kcal';
   if (/step/.test(t)) return 'steps';
   if (/exercise/.test(t)) return 'exmin';
@@ -130,7 +135,7 @@ function hkUnion(iv) {
 }
 function hkSummarize(samples) {
   const days = {}, at = (k) => days[k] || (days[k] = {});
-  const night = {}, hrv = {}, rhr = {}, wt = {};
+  const night = {}, hrv = {}, rhr = {}, wt = {}, whr = {}, resp = {}, spo2 = {}, vo2 = {}, hr = {};
   const cal = (t) => iso(t), shifted = (t) => iso(new Date(t.getTime() + HK_SHIFT));
   const unit = S.settings.unit || 'lb';
   samples.forEach((s) => {
@@ -144,6 +149,11 @@ function hkSummarize(samples) {
       }
       case 'hrv': if (v != null && v > 5 && v < 300) { const k = shifted(s.start); (hrv[k] = hrv[k] || []).push(v); } break;
       case 'rhr': if (v != null && v > 25 && v < 140) { const k = cal(s.start); (rhr[k] = rhr[k] || []).push(v); } break;
+      case 'whr': if (v != null && v > 30 && v < 200) { const k = cal(s.start); (whr[k] = whr[k] || []).push(v); } break;
+      case 'resp': if (v != null && v > 4 && v < 40) { const k = cal(s.start); (resp[k] = resp[k] || []).push(v); } break;
+      case 'spo2': { if (v == null) break; const x = v <= 1.5 ? v * 100 : v; if (x >= 70 && x <= 100) { const k = cal(s.start); (spo2[k] = spo2[k] || []).push(x); } break; }
+      case 'vo2': if (v != null && v >= 10 && v <= 90) { const k = cal(s.start); if (!vo2[k] || s.start >= vo2[k].t) vo2[k] = { t: s.start, x: v }; } break;
+      case 'hr': if (v != null && v >= 30 && v <= 200) { const k = cal(s.start); (hr[k] = hr[k] || []).push(v); } break;
       case 'kcal': case 'steps': case 'exmin': {
         if (v == null) break;
         let x = v;
@@ -165,7 +175,7 @@ function hkSummarize(samples) {
         const min = s.min != null ? s.min : (s.end - s.start) / 60000;
         if (!(min > 0)) break;
         const d = at(cal(s.start)); d.wk = d.wk || [];
-        d.wk.push({ n: String(s.val || 'Workout').slice(0, 40), min: Math.round(min), kcal: s.kcal != null ? Math.round(s.kcal) : hkNum(s.extra) });
+        d.wk.push({ n: String(s.val || 'Workout').slice(0, 40).replace(/[\s,;:|·-]*[\d.,:]+\s*(?:min(?:ute)?s?|kcal|cal|km|mi|m|kj|bpm|h|hr)?\s*$/i, '').trim() || 'Workout', min: Math.round(min), kcal: s.kcal != null ? Math.round(s.kcal) : hkNum(s.extra) });
         break;
       }
     }
@@ -184,6 +194,12 @@ function hkSummarize(samples) {
   const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
   Object.keys(hrv).forEach((k) => { at(k).hrv = Math.round(avg(hrv[k])); });
   Object.keys(rhr).forEach((k) => { at(k).rhr = Math.round(avg(rhr[k])); });
+  const r1 = (x) => Math.round(x * 10) / 10;
+  Object.keys(whr).forEach((k) => { at(k).whr = Math.round(avg(whr[k])); });
+  Object.keys(resp).forEach((k) => { at(k).resp = r1(avg(resp[k])); });
+  Object.keys(spo2).forEach((k) => { at(k).spo2 = Math.round(avg(spo2[k])); });
+  Object.keys(vo2).forEach((k) => { at(k).vo2 = r1(vo2[k].x); });
+  Object.keys(hr).forEach((k) => { at(k).hr = Math.round(avg(hr[k])); });
   Object.keys(wt).forEach((k) => { at(k).weight = Math.round(wt[k].x * 10) / 10; });
   Object.keys(days).forEach((k) => { ['kcal', 'steps', 'exmin'].forEach((f) => { if (days[k][f] != null) days[k][f] = Math.round(days[k][f]); }); });
   return days;
@@ -408,6 +424,10 @@ function hkTrends() {
   h += row('Sleep', (v) => fmtHM(v).replace(' m', 'm').replace(' h ', 'h '), sleepH, 10, (v) => (v >= goal ? 'var(--good)' : v >= 7 ? 'var(--mind)' : v >= 5 ? 'var(--warn)' : 'var(--bad)'));
   h += row('HRV', (v) => v + ' ms', (d) => (hkOf(d) || {}).hrv, hrvMax, () => 'var(--mind)');
   h += row('Resting HR', (v) => v, (d) => (hkOf(d) || {}).rhr, rhrMax, () => 'var(--fuel)');
+  [['whr', 'Walking HR', (v) => v, 'var(--fuel)'], ['vo2', 'VO2 max', (v) => v.toFixed(1), 'var(--good)']].forEach(([key, name, f, col]) => {
+    const vals = Array.from({ length: 14 }, (_, i) => (hkOf(addDays(t, -i)) || {})[key]).filter((x) => x != null);
+    if (vals.length) h += row(name, f, (d) => (hkOf(d) || {})[key], Math.max(...vals) * 1.1, () => col);
+  });
   h += row('Load', (v) => fmtN(v), (d) => { const x = dayLoad(d); return x || null; }, loadMax, () => 'var(--train)');
   h += '</div>';
   const a7 = avgSleep(t, 7), bt = bedtime(t), st = avgSteps(t, 7);
@@ -447,7 +467,7 @@ const HKG_PLACEHOLDER = '#fresh-start-sync v1|waiting for the first run of the F
 const hkg = { busy: false, last: 0, state: '', msg: '', waitUntil: 0, timer: null, awaitPaste: 0 };
 /* clipboard flow: the Fresh Start Health shortcut copies Health to the clipboard, the app pastes it on return */
 const HKS_NAME = 'Fresh Start Health';
-const HKS_READY = false; // true once sync/Fresh Start Health.shortcut is signed and deployed
+const HKS_READY = true; // sync/Fresh Start Health.shortcut is signed (2026-10-19)
 const HKS_FILE = 'sync/Fresh%20Start%20Health.shortcut';
 const HKS_RUN = 'shortcuts://run-shortcut?name=' + encodeURIComponent(HKS_NAME);
 function hkTok() { try { return localStorage.getItem(HKG_TOKEN_KEY) || ''; } catch (e) { return ''; } }
@@ -555,6 +575,7 @@ function lHealth() {
   h += '<div class="card"><div class="row" style="gap:12px"><span style="width:40px;height:40px;border-radius:10px;background:var(--fuel);color:#fff;display:grid;place-items:center;flex:none">' + ic('heart') + '</span><span class="grow"><span style="font-weight:600;display:block">' + (st && st.at ? 'Connected' : 'Not connected yet') + '</span><span class="small muted">' + (st && st.at ? hkSyncedLabel() + ' · ' + st.n + ' days · ' + hkHasLabel(st.has) : 'Set it up below') + '</span></span></div>' +
     '<div class="row" style="gap:10px;margin-top:14px;flex-wrap:wrap">' + '<button class="btn train sm" data-a="hkSync">Sync now</button>' + '<button class="btn ghost sm" data-a="sheet" data-v="hkpaste">Paste or import a file</button></div>' +
     (R.score != null ? '<p class="small fg2" style="margin:12px 0 0">Today: recovery ' + R.score + ' · ' + esc(PUSH_TXT[R.tier][0]) + '.</p>' : '') + '</div>';
+  h += hkFitnessCard();
   h += hkSetupCard();
   h += '<div class="card"><h3 class="h-sm">What it does</h3><ul class="small fg2" style="margin:8px 0 0;padding-left:18px">' + [
     'Reads last night’s sleep, HRV and resting heart rate, and weighs them against your own 4-week normal.',
@@ -568,8 +589,33 @@ function lHealth() {
   if (st && st.at) h += '<div class="card"><div class="row"><span class="grow"><span style="font-weight:600;display:block">Remove Health data</span><span class="small muted">Clears every imported day. Your own logs stay.</span></span><button class="btn ghost sm" style="color:var(--bad)" data-a="hkClear">' + (ui.hkClearArm ? 'Tap again' : 'Remove') + '</button></div></div>';
   return h + '<p class="xs muted" style="text-align:center;margin-top:4px">Health data stays on your iPhone: the shortcut copies it to the clipboard and the app stores it with your other logs.</p></div></div></div>';
 }
+function hkFitnessCard() {
+  const t = todayISO(), H = (i) => hkOf(addDays(t, -i)) || {};
+  const defs = [['rhr', 'Resting HR', 'bpm', 0, true], ['hrv', 'HRV', 'ms', 0, false], ['whr', 'Walking HR', 'bpm', 0, true], ['hr', 'Heart rate', 'bpm avg', 0, true], ['resp', 'Respiratory rate', '/min', 1, true], ['spo2', 'Blood oxygen', '%', 0, false], ['vo2', 'VO2 max', 'mL/kg·min', 1, false]];
+  const win = (key, a, b) => { const xs = []; for (let i = a; i < b; i++) { const v = H(i)[key]; if (v != null) xs.push(v); } return xs; };
+  let rows = '';
+  defs.forEach(([key, name, unit, dp, lowGood]) => {
+    const all = win(key, 0, 14); if (!all.length) return;
+    let latest = null; for (let i = 0; i < 14; i++) { if (H(i)[key] != null) { latest = H(i)[key]; break; } }
+    const a = win(key, 0, 7), b = win(key, 7, 14);
+    let sub = '<span class="xs muted">building baseline</span>';
+    if (a.length && b.length) {
+      const m = hkMean(a), dlt = m - hkMean(b), tiny = Math.abs(dlt) < (dp ? 0.05 : 0.5);
+      const good = lowGood ? dlt < 0 : dlt > 0;
+      sub = '<span class="tnum" style="font-weight:600;' + (tiny ? '' : 'color:var(--' + (good ? 'good' : 'warn') + ')') + '">' + (tiny ? '→' : dlt > 0 ? '↑' : '↓') + ' ' + m.toFixed(dp) + '</span> <span class="xs muted">' + (tiny ? 'steady' : (dlt > 0 ? '+' : '−') + Math.abs(dlt).toFixed(dp)) + ' vs last week</span>';
+    }
+    rows += '<div class="row" style="gap:12px;padding:6px 0"><span class="grow"><span class="small fg2" style="display:block">' + name + '</span><span class="small">' + sub + '</span></span><span class="tnum" style="font-weight:700;font-size:17px;text-align:right">' + latest.toFixed(dp) + '<span class="xs muted" style="font-weight:400"> ' + unit + '</span></span></div>';
+  });
+  let wk = [];
+  for (let i = 0; i < 10; i++) { const d = addDays(t, -i); ((H(i).wk) || []).forEach((w) => wk.push([d, w])); }
+  if (!rows && !wk.length) return '';
+  let h = '<div class="card stack">';
+  if (rows) h += '<h3 class="h-sm">Heart &amp; fitness</h3><div>' + rows + '</div>';
+  if (wk.length) h += '<h3 class="h-sm"' + (rows ? ' style="margin-top:6px"' : '') + '>Recent workouts</h3><div>' + wk.map(([d, w]) => '<div class="row" style="gap:12px;padding:5px 0"><span class="xs muted" style="width:64px">' + fmtShort(d) + '</span><span class="grow small">' + esc(w.n) + '</span><span class="small tnum muted">' + w.min + ' min' + (w.kcal != null ? ' · ' + w.kcal + ' kcal' : '') + '</span></div>').join('') + '</div>';
+  return h + '</div>';
+}
 function hkHasLabel(has) {
-  const N = { sleep: 'sleep', hrv: 'HRV', rhr: 'resting HR', kcal: 'energy', steps: 'steps', exmin: 'exercise', weight: 'weight', wk: 'workouts' };
+  const N = { sleep: 'sleep', hrv: 'HRV', rhr: 'resting HR', kcal: 'energy', steps: 'steps', exmin: 'exercise', weight: 'weight', wk: 'workouts', whr: 'walking HR', resp: 'respiratory rate', spo2: 'blood oxygen', vo2: 'VO2 max', hr: 'heart rate' };
   return (has || []).filter((k) => N[k]).map((k) => N[k]).join(', ') || 'no metrics';
 }
 function hkPasteSheet() {
