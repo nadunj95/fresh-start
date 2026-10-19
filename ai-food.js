@@ -1,10 +1,11 @@
 /* AI food logging, Cal AI style: scan a plate, a nutrition label or a barcode, or describe a meal.
    Analysis runs in the background (progress card on Fuel), then one meal is logged and its Result screen opens for edits.
-   Calls the Anthropic Messages API straight from the browser with the user's own key.
+   Calls the Google Gemini API straight from the browser with the user's own key (JSON-schema output).
    The key lives in localStorage only (never in S, never synced, never in backups); so do the ~160px thumbnails. */
 'use strict';
 
-const AI_MODEL = 'claude-sonnet-5-5';
+const AI_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite']; // free-tier flash models, fastest and steadiest first (Oct 2026 testing); Pro needs a paid plan // tried in order when one is overloaded or retired
+const AI_API = 'https://generativelanguage.googleapis.com/v1beta/models/';
 const AI_KEY_LS = 'fs_ai_key';
 const AI_TH_LS = 'fs_ai_thumbs';
 const AI_SYSTEM = 'You are a nutrition estimator inside a personal training app. The user is on a fat-loss plan and logs every meal, so be realistic, not optimistic: ' +
@@ -12,7 +13,7 @@ const AI_SYSTEM = 'You are a nutrition estimator inside a personal training app.
   'Foods are mostly Australian or American. Split the meal into separate items (one per food or drink), each with a sensible gram or ml weight and its own calories and macros in grams. ' +
   'If a photo is supplied, identify each item and judge portion size from the plate, cutlery and context. Follow any hint from the user (for example half portion). ' +
   'Also estimate fiber (g), total sugars (g) and sodium (mg) for each item. Give the whole meal a short meal_name (2 to 5 words), a health_score from 1 (very poor) to 10 (excellent) judged on whole foods, protein, fibre, added sugar and processing, and a one-line health_reason. ' +
-  'Always answer by calling the log_meal tool. Use the note field for one short sentence on your biggest uncertainty.';
+  'Always answer with the JSON object. Use the note field for one short sentence on your biggest uncertainty.';
 const AI_X_LABEL = 'The photo shows a packaged-food nutrition facts panel. Read the printed numbers exactly, do not estimate them. Return ONE item named after the product (or "Packaged food" if unreadable). ' +
   'Use the per-serving column and put the printed serving size in grams or ml in grams. Assume the user eats exactly one serving unless they say otherwise, and say that in the note together with the serving size. Score health from the label.';
 const AI_X_BARCODE = 'The photo shows a packaged product whose barcode could not be matched in a database. Identify the product from the packaging, brand and size if you can, and estimate one serving realistically. Say in the note that this is an estimate, not a label reading.';
@@ -29,7 +30,7 @@ const AI_TOOL = {
     required: ['meal_name', 'health_score', 'health_reason', 'items', 'note'] },
 };
 const AI_EX_TOOL = { name: 'log_exercise', description: 'Record the estimated energy burned by the exercise.', input_schema: { type: 'object', properties: { name: { type: 'string' }, kcal: { type: 'number' }, note: { type: 'string' } }, required: ['name', 'kcal', 'note'] } };
-const AI_EX_SYSTEM = 'You estimate calories burned by exercise for a personal training app. Be realistic, not generous: use the person\'s body weight if given, the activity, intensity and duration, and report ACTIVE energy only (above resting). Answer by calling log_exercise with a short name, kcal as a whole number and a one-line note.';
+const AI_EX_SYSTEM = 'You estimate calories burned by exercise for a personal training app. Be realistic, not generous: use the person\'s body weight if given, the activity, intensity and duration, and report ACTIVE energy only (above resting). Answer with the JSON object: a short name, kcal as a whole number and a one-line note.';
 const AI_EX_TYPES = ['Run', 'Weight lifting', 'Walk', 'Cycling', 'Describe…'];
 const AI_NUT_TG = { fiber: 30, sugar: 50, sodium: 2300 }; // fiber is a minimum, sugar (g) and sodium (mg) are limits
 const AI_SAVED_LS = 'fs_ai_saved';
@@ -66,6 +67,7 @@ const aiId = () => 'a' + Date.now().toString(36) + Math.random().toString(36).sl
 })();
 
 const AI_IC = {
+  roll: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-9 9"/></svg>',
   cam: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.4-2h6.2l1.4 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5Z"/><circle cx="12" cy="13" r="3.6"/></svg>',
   label: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/></svg>',
   run: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="5" r="1.8"/><path d="M9 20l2.5-5-2.5-2 1.5-4 3.5 1 2.5 3M7 11l3-3M12 15l3.5 1.5"/></svg>',
@@ -184,7 +186,7 @@ A.aiPick = (el) => {
 };
 A.aiKeySave = () => {
   const el = $('#aiKeyIn'), v = el ? el.value.trim() : '';
-  if (!/^sk-ant-/.test(v)) { toast('That does not look like an Anthropic key'); return; }
+  if (!/^(AIza|AQ\.)[\w.-]{20,}$/.test(v)) { toast('That does not look like a Gemini API key'); return; }
   try { localStorage.setItem(AI_KEY_LS, v); } catch (e) { toast('Could not save the key on this device'); return; }
   toast('Key saved on this device');
   if (ui.sheet && ui.sheet.v === 'aikey') openSheet('aiadd'); else render();
@@ -309,7 +311,7 @@ A.aiExGo = async () => {
   const e = AI.ex; if (!e || e.busy) return;
   if (e.type.startsWith('Describe') && !e.desc.trim()) { toast('Describe the exercise first'); return; }
   if (!(aiNum(e.min) > 0)) { toast('Enter the duration in minutes'); return; }
-  if (!aiKey()) { e.err = 'Add your Anthropic API key in Settings to estimate, or type the calories yourself.'; render(); return; }
+  if (!aiKey()) { e.err = 'Add your Gemini API key in Settings to estimate, or type the calories yourself.'; render(); return; }
   e.busy = true; e.err = ''; render();
   try {
     const w = aiExLatestW();
@@ -377,29 +379,60 @@ function aiReadFile(file) {
 }
 
 /* ---------------------------------------------------------------- the API */
+/* JSON Schema (as written for the tools above) → Gemini's OpenAPI-style responseSchema */
+function aiSchema(x) {
+  if (!x || typeof x !== 'object') return x;
+  const o = {};
+  if (x.type) o.type = String(x.type).toUpperCase();
+  ['description', 'required', 'minimum', 'maximum'].forEach((k) => { if (x[k] != null) o[k] = x[k]; });
+  if (x.properties) { o.properties = {}; Object.keys(x.properties).forEach((k) => { o.properties[k] = aiSchema(x.properties[k]); }); o.propertyOrdering = Object.keys(x.properties); }
+  if (x.items) o.items = aiSchema(x.items);
+  return o;
+}
 async function aiCall(system, tool, content) {
-  const key = aiKey(); if (!key) throw { msg: 'Add your Anthropic API key in Settings, under AI food logging.' };
-  let res;
-  try {
-    res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: AI_MODEL, max_tokens: 1500, system, tools: [tool], tool_choice: { type: 'tool', name: tool.name }, messages: [{ role: 'user', content }] }),
-    });
-  } catch (e) {
-    throw { msg: navigator.onLine === false ? 'You appear to be offline. Try again when you have signal.' : 'Could not reach the AI service. Check your connection and try again.' };
+  const key = aiKey(); if (!key) throw { msg: 'Add your Gemini API key in Settings, under AI food logging.' };
+  const parts = content.map((b) => (b.type === 'image' ? { inline_data: { mime_type: b.source.media_type || 'image/jpeg', data: b.source.data } } : { text: b.text }));
+  const mk = (think) => JSON.stringify({
+    system_instruction: { parts: [{ text: system + ' ' + tool.description }] },
+    contents: [{ role: 'user', parts }],
+    // low thinking: ~3 s instead of ~1 min, with the same estimates in testing
+    generationConfig: Object.assign({ responseMimeType: 'application/json', responseSchema: aiSchema(tool.input_schema), temperature: 0.2 }, think ? { thinkingConfig: { thinkingLevel: 'low' } } : {}),
+  });
+  let body = mk(true);
+  let res = null, last = 0;
+  const order = AI_MODELS.concat(AI_MODELS.slice(0, 2)); // second pass over the steadier models: 503 "high demand" spikes are brief
+  for (let i = 0; i < order.length; i++) { // an overloaded (503), rate-limited (429) or retired (404) model falls through to the next
+    const model = order[i];
+    if (i === AI_MODELS.length) await new Promise((ok) => setTimeout(ok, 1500));
+    const ac = new AbortController(), tm = setTimeout(() => ac.abort(), 25000); // a stalled model gives way to the next
+    try {
+      res = await fetch(AI_API + model + ':generateContent', { method: 'POST', headers: { 'x-goog-api-key': key, 'content-type': 'application/json' }, body, signal: ac.signal });
+    } catch (e) {
+      clearTimeout(tm);
+      if (e && e.name === 'AbortError') { res = { ok: false, status: 503, json: async () => ({}) }; last = 503; continue; }
+      throw { msg: navigator.onLine === false ? 'You appear to be offline. Try again when you have signal.' : 'Could not reach the AI service. Check your connection and try again.' };
+    }
+    clearTimeout(tm);
+    last = res.status;
+    if (res.status === 400 && body.includes('thinkingConfig')) { // a model without thinking levels: same model, plain request
+      const t = await res.clone().text().catch(() => '');
+      if (/thinking/i.test(t)) { body = mk(false); i--; continue; }
+    }
+    if (res.ok || ![404, 429, 500, 503].includes(res.status)) break;
   }
   if (!res.ok) {
-    throw { msg: res.status === 401 || res.status === 403 ? 'Anthropic rejected the API key. Check it in Settings, under AI food logging.'
-      : res.status === 429 ? 'Rate limit hit. Wait a minute and try again.'
-      : res.status === 529 || res.status >= 500 ? 'The AI service is busy right now. Try again shortly.'
-      : res.status === 400 ? 'The request was refused (400). If this is a photo, try a smaller or different one. Also check your Anthropic credit balance.'
-      : 'Something went wrong (' + res.status + ').' };
+    let why = ''; try { why = ((await res.json()).error || {}).message || ''; } catch (e) { /* no body */ }
+    throw { msg: last === 401 || last === 403 || /api key/i.test(why) ? 'Google rejected the API key. Check it in Settings, under AI food logging.'
+      : last === 429 ? 'Gemini’s rate limit or free quota was hit. Wait a minute and try again.'
+      : last >= 500 ? 'Gemini is busy right now. Try again shortly.'
+      : last === 400 ? 'The request was refused (400). If this is a photo, try a smaller or different one.'
+      : 'Something went wrong (' + last + ').' };
   }
   let j; try { j = await res.json(); } catch (e) { throw { msg: 'The AI answer could not be read. Try again.' }; }
-  const tu = (j.content || []).find((b) => b.type === 'tool_use');
-  if (!tu || !tu.input) throw { msg: 'The AI did not return a result. Try again.' };
-  return tu.input;
+  const c = (j.candidates || [])[0];
+  if (!c) throw { msg: j.promptFeedback && j.promptFeedback.blockReason ? 'Gemini declined this one. Try another photo or describe it instead.' : 'The AI did not return a result. Try again.' };
+  const txt = ((c.content && c.content.parts) || []).filter((x) => x.text && !x.thought).map((x) => x.text).join('').trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+  try { return JSON.parse(txt); } catch (e) { throw { msg: c.finishReason === 'MAX_TOKENS' ? 'The answer was cut short. Try a simpler description.' : 'The AI answer could not be read. Try again.' }; }
 }
 function aiNorm(inp) {
   const opt = (v) => (v == null || v === '' || !isFinite(parseFloat(v)) ? undefined : aiNum(v));
@@ -573,16 +606,16 @@ function aiButtons(slot, cls) {
 
 /* ---------------------------------------------------------------- sheets */
 function aiSheet() { // describe a meal
-  let s = '<h2 class="h-lg">Describe meal</h2><p class="small fg2" style="margin:6px 0 12px">Say what you ate and roughly how much. Claude estimates it in the background.</p>';
+  let s = '<h2 class="h-lg">Describe meal</h2><p class="small fg2" style="margin:6px 0 12px">Say what you ate and roughly how much. Gemini estimates it in the background.</p>';
   if (AI.err) s += '<div style="margin-bottom:12px">' + bannerHTML('warn', esc(AI.err)) + '</div>';
   return s + '<div class="row" style="align-items:flex-start;gap:10px"><textarea class="field" data-ai="text" placeholder="2 eggs, toast with butter, flat white" aria-label="Describe what you ate">' + esc(AI.text) + '</textarea>' + (aiSR() ? '<button class="aimic' + (AI.rec ? ' on' : '') + '" data-a="aiMic" aria-pressed="' + !!AI.rec + '" aria-label="Dictate with your voice">' + AI_IC.mic.replace('<svg', '<svg width="22" height="22"') + '</button>' : '') + '</div>' +
     '<button class="btn fuel block" style="margin-top:14px" data-a="aiTextGo">Estimate calories</button><button class="btn ghost block" style="margin-top:8px" data-a="aiAdd">Back</button>';
 }
 function aiAddSheet() {
-  const T = [['photo', 'cam', 'Scan food', 'Photo of your plate'], ['label', 'label', 'Food label', 'Reads the panel'], ['barcode', 'bar', 'Barcode', 'Packaged foods'], ['text', 'text', 'Describe meal', 'Type what you ate'], ['ex', 'run', 'Log exercise', 'Adds calories burned', 'aiExOpen'], ['saved', 'mark', 'Saved foods', aiSaved().length + ' saved', 'aiSavedOpen']];
+  const T = [['photo', 'cam', 'Scan food', 'Photo of your plate'], ['lib', 'roll', 'Camera roll', 'Add from camera roll'], ['label', 'label', 'Food label', 'Reads the panel'], ['barcode', 'bar', 'Barcode', 'Packaged foods'], ['text', 'text', 'Describe meal', 'Type what you ate'], ['ex', 'run', 'Log exercise', 'Adds calories burned', 'aiExOpen'], ['saved', 'mark', 'Saved foods', aiSaved().length + ' saved', 'aiSavedOpen']];
   return '<h2 class="h-lg">Log food</h2><p class="small fg2" style="margin:6px 0 0">Snap it and keep using the app. The result shows up in your meals.</p><div class="aitiles">' +
     T.map((t) => '<button class="aitile" data-a="' + (t[4] || 'aiPick') + '" data-v="' + t[0] + '"><span class="ti">' + AI_IC[t[1]] + '</span><span>' + t[2] + '</span><span class="xs muted">' + t[3] + '</span></button>').join('') + '</div>' +
-    '<div class="row" style="justify-content:center;gap:22px;margin-top:16px;flex-wrap:wrap"><button class="link" data-a="aiPick" data-v="lib">Choose from library</button><button class="link" data-a="sheet" data-v="food" data-s="' + esc(AI.slotHint || aiGuessSlot()) + '">Browse foods</button></div>';
+    '<div class="row" style="justify-content:center;gap:22px;margin-top:16px;flex-wrap:wrap"><button class="link" data-a="sheet" data-v="food" data-s="' + esc(AI.slotHint || aiGuessSlot()) + '">Browse foods</button></div>';
 }
 function aiSavedSheet() {
   const a = aiSaved();
@@ -596,7 +629,7 @@ function aiSavedSheet() {
 }
 function aiExSheet() {
   const e = AI.ex || (AI.ex = { type: 'Run', desc: '', int: 'Medium', min: '30', kcal: '', busy: false, err: '', date: ui.date }), w = aiExLatestW();
-  let s = '<h2 class="h-lg">Log exercise</h2><p class="small fg2" style="margin:6px 0 0">Pick what you did. Claude estimates calories burned' + (w ? ' for ' + w + ' kg' : '') + ', or type them yourself.</p>';
+  let s = '<h2 class="h-lg">Log exercise</h2><p class="small fg2" style="margin:6px 0 0">Pick what you did. Gemini estimates calories burned' + (w ? ' for ' + w + ' kg' : '') + ', or type them yourself.</p>';
   if (e.busy) return s + '<div class="card row" style="gap:12px;justify-content:center;padding:22px;margin-top:14px"><span class="aispin"></span><span class="fg2" role="status">Estimating…</span></div>';
   s += '<div class="aichips" role="group" aria-label="Exercise type">' + AI_EX_TYPES.map((t) => '<button class="' + (e.type === t ? 'on' : '') + '" data-a="aiExType" data-v="' + esc(t) + '" aria-pressed="' + (e.type === t) + '">' + esc(t) + '</button>').join('') + '</div>';
   if (e.type.startsWith('Describe')) s += '<input class="field" style="margin-top:10px" data-ai="exdesc" value="' + esc(e.desc) + '" placeholder="Rowing machine, hard" aria-label="Describe the exercise">';
@@ -616,11 +649,11 @@ function aiBusyOrErr(body) { // shared by the fix and add-ingredient sheets
   return (AI.err ? '<div style="margin:12px 0">' + bannerHTML('warn', esc(AI.err)) + '</div>' : '') + body;
 }
 function aiFixSheet() {
-  return '<h2 class="h-lg">Fix results</h2><p class="small fg2" style="margin:6px 0 12px">What is wrong? Claude redoes the estimate with your correction.</p>' + aiBusyOrErr(
+  return '<h2 class="h-lg">Fix results</h2><p class="small fg2" style="margin:6px 0 12px">What is wrong? Gemini redoes the estimate with your correction.</p>' + aiBusyOrErr(
     '<textarea class="field" data-ai="fix" placeholder="It was brown rice, and half the portion" aria-label="What is wrong">' + esc(AI.fix) + '</textarea><button class="btn fuel block" style="margin-top:14px" data-a="aiFixGo">Re-estimate</button><button class="btn ghost block" style="margin-top:8px" data-a="aiBack">Cancel</button>');
 }
 function aiIngSheet() {
-  return '<h2 class="h-lg">Add ingredient</h2><p class="small fg2" style="margin:6px 0 12px">Name it with an amount. Claude estimates just that and adds it.</p>' + aiBusyOrErr(
+  return '<h2 class="h-lg">Add ingredient</h2><p class="small fg2" style="margin:6px 0 12px">Name it with an amount. Gemini estimates just that and adds it.</p>' + aiBusyOrErr(
     '<input class="field" data-ai="ing" value="' + esc(AI.ing) + '" placeholder="1 tbsp olive oil" aria-label="Ingredient to add"><button class="btn fuel block" style="margin-top:14px" data-a="aiIngGo">Estimate and add</button><button class="btn ghost block" style="margin-top:8px" data-a="aiBack">Cancel</button>');
 }
 function aiResSheet() {
@@ -660,16 +693,16 @@ function aiRefreshRes() {
   r.items.forEach((x, i) => set('aiI-' + i, fmtN(x.grams * sv) + ' g · ' + fmtN(x.kcal * sv) + ' kcal'));
 }
 function aiKeySheet() {
-  return '<h2 class="h-lg">Add your AI key</h2><p class="small fg2" style="margin:6px 0 12px">Scan a plate, a label or a barcode, or describe a meal, and Claude estimates calories and macros. It needs your own Anthropic API key. Create one at <b>console.anthropic.com</b> (Settings, API keys), then paste it here or in Settings. It stays on this device only.</p>' +
-    '<input class="field" id="aiKeyIn" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-ant-…" aria-label="Anthropic API key">' +
+  return '<h2 class="h-lg">Add your AI key</h2><p class="small fg2" style="margin:6px 0 12px">Scan a plate, a label or a barcode, or describe a meal, and Gemini estimates calories and macros. It needs your own Gemini API key. Create one at <b>aistudio.google.com</b> (Get API key), then paste it here or in Settings. It stays on this device only.</p>' +
+    '<input class="field" id="aiKeyIn" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your Gemini API key" aria-label="Gemini API key">' +
     '<button class="btn fuel block" style="margin-top:12px" data-a="aiKeySave">Save key</button><button class="btn ghost block" style="margin-top:8px" data-a="closeSheet">Not now</button>';
 }
 function aiSettingsCard() {
   const has = !!aiKey(), burn = !!S.settings.aiBurn, exb = !!S.settings.aiExBack, rol = !!S.settings.aiRollover;
   const tg = (k, on, t, sub) => '<div class="row"><span class="grow"><span style="font-weight:600;display:block">' + t + '</span><span class="small muted">' + sub + '</span></span><button class="toggle' + (on ? ' on' : '') + '" data-a="setting" data-k="' + k + '" data-v="' + (!on) + '" aria-pressed="' + on + '" aria-label="' + t + '"></button></div>';
-  return '<div class="card stack"><div><div style="font-weight:600">AI food logging</div><div class="small muted">Scan a plate, a label or a barcode, or describe a meal, and Claude estimates the macros. Uses your own key from console.anthropic.com. Stored on this device only, never synced or backed up.</div></div>' +
+  return '<div class="card stack"><div><div style="font-weight:600">AI food logging</div><div class="small muted">Scan a plate, a label or a barcode, or describe a meal, and Gemini estimates the macros. Uses your own Gemini API key from aistudio.google.com. Stored on this device only, never synced or backed up.</div></div>' +
     (has ? '<div class="row" style="justify-content:space-between"><span class="small" style="color:var(--good)">Key saved on this device</span><button class="btn ghost sm" style="color:var(--bad)" data-a="aiKeyClear">Remove key</button></div>'
-      : '<input class="field" id="aiKeyIn" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-ant-…" aria-label="Anthropic API key"><button class="btn fuel sm" data-a="aiKeySave">Save key</button>') +
+      : '<input class="field" id="aiKeyIn" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your Gemini API key" aria-label="Gemini API key"><button class="btn fuel sm" data-a="aiKeySave">Save key</button>') +
     '<div class="row"><span class="grow"><span style="font-weight:600;display:block">Add Apple Health active energy to my budget</span><span class="small muted">Calories burned raise what you have left today</span></span><button class="toggle' + (burn ? ' on' : '') + '" data-a="setting" data-k="aiBurn" data-v="' + (!burn) + '" aria-pressed="' + burn + '" aria-label="Add active energy to budget"></button></div>' +
     tg('aiExBack', exb, 'Add logged exercise back to my budget', 'Exercise you log counts as calories burned. With both this and Apple Health on, the higher of the two is used so nothing is counted twice') +
     tg('aiRollover', rol, 'Roll over unused calories (up to ' + AI_ROLL_CAP + ')', 'Yesterday’s unused calories are added to today, if you logged a meal yesterday') + '</div>';
