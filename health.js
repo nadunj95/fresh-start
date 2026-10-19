@@ -154,14 +154,14 @@ function hkSummarize(samples) {
       case 'resp': if (v != null && v > 4 && v < 40) { const k = cal(s.start); (resp[k] = resp[k] || []).push(v); } break;
       case 'spo2': { if (v == null) break; const x = v <= 1.5 ? v * 100 : v; if (x >= 70 && x <= 100) { const k = cal(s.start); (spo2[k] = spo2[k] || []).push(x); } break; }
       case 'vo2': if (v != null && v >= 10 && v <= 90) { const k = cal(s.start); if (!vo2[k] || s.start >= vo2[k].t) vo2[k] = { t: s.start, x: v }; } break;
-      case 'hr': if (v != null && v >= 30 && v <= 200) { const k = cal(s.start); (hr[k] = hr[k] || []).push(v); hIv.push([s.start.getTime(), s.end.getTime(), v]); } break;
+      case 'hr': if (v != null && v >= 30 && v <= 200) { const k = cal(s.start); (hr[k] = hr[k] || []).push(v); if (s.end - s.start <= 2 * 3600000) hIv.push([s.start.getTime(), s.end.getTime(), v]); } break;
       case 'kcal': case 'steps': case 'exmin': {
         if (v == null) break;
         let x = v;
         if (s.kind === 'kcal' && /kj/i.test(s.unit)) x = v / 4.184;
         if (s.kind === 'exmin' && /^(s|sec)/i.test(s.unit)) x = v / 60;
         const d = at(cal(s.start)); d[s.kind] = (d[s.kind] || 0) + x;
-        if (s.kind === 'kcal') eIv.push([s.start.getTime(), s.end.getTime(), x]);
+        if (s.kind === 'kcal' && s.end - s.start <= 2 * 3600000) eIv.push([s.start.getTime(), s.end.getTime(), x]);
         break;
       }
       case 'weight': {
@@ -205,7 +205,7 @@ function hkSummarize(samples) {
   Object.keys(hr).forEach((k) => { at(k).hr = Math.round(avg(hr[k])); });
   Object.keys(wt).forEach((k) => { at(k).weight = Math.round(wt[k].x * 10) / 10; });
   Object.keys(days).forEach((k) => { ['kcal', 'steps', 'exmin'].forEach((f) => { if (days[k][f] != null) days[k][f] = Math.round(days[k][f]); }); });
-  // workouts carry no calories or heart rate of their own in the Shortcut text: share out the hourly
+  // workouts carry no calories or heart rate of their own in the Shortcut text: share out the hourly (never daily)
   // active energy by overlap, and average the hourly heart rate across the hours it covers (approximate)
   const lap = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
   wks.forEach(([ws, we, w]) => {
