@@ -648,7 +648,7 @@ function hkSetupCard() {
     '<p class="xs muted" style="margin:8px 0 0">If Safari asks, tap Download, then open it from the ↓ downloads button and tap Add Shortcut. Delete any old Fresh Start Sync shortcut first. If your iPhone won’t add it, build it by hand with the steps further down — it takes about 5 minutes.</p>'
     : '<p class="small fg2" style="margin:0">Build <b>Fresh Start Health</b> by hand with the steps under <b>Build it by hand instead</b> below. It takes about 5 minutes, and because your iPhone builds it, nothing can be set up wrong. (A one-tap install link comes back here once Apple’s shortcut signing service is working again.)</p>');
   h += hkStep(2, synced, 'Tap Sync now', '<button class="btn train sm" data-a="hkSync">Sync now</button>' +
-    '<p class="xs muted" style="margin:8px 0 0">The first run asks for Health access: turn on every type and tap Allow. Keep the iPhone unlocked while it runs.</p>');
+    '<p class="xs muted" style="margin:8px 0 0">Once only: open the Settings app → Apps → Shortcuts → Advanced and turn on <b>Allow Sharing Large Amounts of Data</b>, or Shortcuts stops with “trying to share … Health items”. The first run asks for Health access: turn on every type and tap Allow. Keep the iPhone unlocked while it runs.</p>');
   h += hkStep(3, synced, 'Come back and paste', '<p class="xs muted" style="margin:0">Tap ‹ Fresh Start at the top left (or switch back), then Paste Health data. Do this each morning before your check-in; it takes about 10 seconds.</p>');
   h += '</div>';
   if (S.settings.hkGist) h += '<p class="xs muted" style="margin:14px 0 0">The old GitHub sync is switched off. You can delete the \'Fresh Start Health\' gist on GitHub and the old token whenever you like.</p>';
@@ -731,7 +731,7 @@ A.hkSync = () => {
 /* the paste must be read inside this tap (iOS shows its own Paste button) */
 A.hkPasteNow = async () => {
   const fail = () => {
-    ui.hkMsg = 'The clipboard didn’t hold Health data. Run Fresh Start Health again, or paste it below.';
+    ui.hkMsg = 'The clipboard didn’t hold Health data. If Shortcuts said it was “trying to share … Health items”, turn on Settings → Apps → Shortcuts → Advanced → Allow Sharing Large Amounts of Data, then run Fresh Start Health again.';
     openSheet('hkpaste');
   };
   let text = '';
