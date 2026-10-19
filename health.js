@@ -138,6 +138,7 @@ function hkSummarize(samples) {
   const night = {}, hrv = {}, rhr = {}, wt = {}, whr = {}, resp = {}, spo2 = {}, vo2 = {}, hr = {};
   const cal = (t) => iso(t), shifted = (t) => iso(new Date(t.getTime() + HK_SHIFT));
   const unit = S.settings.unit || 'lb';
+  const eIv = [], hIv = [], wks = []; // hourly energy / heart rate, matched to workouts below
   samples.forEach((s) => {
     const v = hkNum(s.val);
     switch (s.kind) {
@@ -153,13 +154,14 @@ function hkSummarize(samples) {
       case 'resp': if (v != null && v > 4 && v < 40) { const k = cal(s.start); (resp[k] = resp[k] || []).push(v); } break;
       case 'spo2': { if (v == null) break; const x = v <= 1.5 ? v * 100 : v; if (x >= 70 && x <= 100) { const k = cal(s.start); (spo2[k] = spo2[k] || []).push(x); } break; }
       case 'vo2': if (v != null && v >= 10 && v <= 90) { const k = cal(s.start); if (!vo2[k] || s.start >= vo2[k].t) vo2[k] = { t: s.start, x: v }; } break;
-      case 'hr': if (v != null && v >= 30 && v <= 200) { const k = cal(s.start); (hr[k] = hr[k] || []).push(v); } break;
+      case 'hr': if (v != null && v >= 30 && v <= 200) { const k = cal(s.start); (hr[k] = hr[k] || []).push(v); hIv.push([s.start.getTime(), s.end.getTime(), v]); } break;
       case 'kcal': case 'steps': case 'exmin': {
         if (v == null) break;
         let x = v;
         if (s.kind === 'kcal' && /kj/i.test(s.unit)) x = v / 4.184;
         if (s.kind === 'exmin' && /^(s|sec)/i.test(s.unit)) x = v / 60;
         const d = at(cal(s.start)); d[s.kind] = (d[s.kind] || 0) + x;
+        if (s.kind === 'kcal') eIv.push([s.start.getTime(), s.end.getTime(), x]);
         break;
       }
       case 'weight': {
@@ -175,7 +177,8 @@ function hkSummarize(samples) {
         const min = s.min != null ? s.min : (s.end - s.start) / 60000;
         if (!(min > 0)) break;
         const d = at(cal(s.start)); d.wk = d.wk || [];
-        d.wk.push({ n: String(s.val || 'Workout').slice(0, 40).replace(/[\s,;:|·-]*[\d.,:]+\s*(?:min(?:ute)?s?|kcal|cal|km|mi|m|kj|bpm|h|hr)?\s*$/i, '').trim() || 'Workout', min: Math.round(min), kcal: s.kcal != null ? Math.round(s.kcal) : hkNum(s.extra) });
+        const w = { n: String(s.val || 'Workout').slice(0, 40).replace(/[\s,;:|·-]*[\d.,:]+\s*(?:min(?:ute)?s?|kcal|cal|km|mi|m|kj|bpm|h|hr)?\s*$/i, '').trim() || 'Workout', min: Math.round(min), kcal: s.kcal != null ? Math.round(s.kcal) : hkNum(s.extra) };
+        d.wk.push(w); wks.push([s.start.getTime(), s.end.getTime(), w]);
         break;
       }
     }
@@ -202,6 +205,19 @@ function hkSummarize(samples) {
   Object.keys(hr).forEach((k) => { at(k).hr = Math.round(avg(hr[k])); });
   Object.keys(wt).forEach((k) => { at(k).weight = Math.round(wt[k].x * 10) / 10; });
   Object.keys(days).forEach((k) => { ['kcal', 'steps', 'exmin'].forEach((f) => { if (days[k][f] != null) days[k][f] = Math.round(days[k][f]); }); });
+  // workouts carry no calories or heart rate of their own in the Shortcut text: share out the hourly
+  // active energy by overlap, and average the hourly heart rate across the hours it covers (approximate)
+  const lap = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
+  wks.forEach(([ws, we, w]) => {
+    if (w.kcal == null) {
+      let k = 0, hit = false;
+      eIv.forEach(([s0, s1, x]) => { const o = lap(ws, we, s0, s1); if (o > 0 && s1 > s0) { k += x * o / (s1 - s0); hit = true; } });
+      if (hit) { w.kcal = Math.round(k); w.est = 1; }
+    }
+    let hs = 0, hw = 0;
+    hIv.forEach(([s0, s1, x]) => { const o = lap(ws, we, s0, Math.max(s1, s0 + 1)); if (o > 0) { hs += x * o; hw += o; } });
+    if (hw) w.hr = Math.round(hs / hw);
+  });
   return days;
 }
 
@@ -435,6 +451,75 @@ function hkTrends() {
   if (a7 != null && a7 < goal - 0.5) h += '<p class="small fg2" style="margin:10px 2px 0">You’re averaging ' + fmtHM(goal - a7) + ' under your sleep goal. Short sleep raises hunger and cuts how much of the loss comes from fat, so it costs the cut as well as the lifts.</p>';
   return h + '</section>';
 }
+/* Health trends: longer-range view with change vs earlier period (range toggle 2w / 4w / 12w) */
+const HKP_RANGES = [14, 28, 84];
+function hkProgress() {
+  const t = todayISO();
+  if (!hkConnected()) return '';
+  const N = HKP_RANGES.includes(ui.hkRange) ? ui.hkRange : 28, B = Math.max(1, Math.round(N / 14));
+  const H = (d) => hkOf(d) || {}, mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const wkCount = (d) => (H(d).wk || []).length, wkMin = (d) => (H(d).wk || []).reduce((a, w) => a + (w.min || 0), 0);
+  // [name, daily getter, formatter, unit, good direction (+1 higher / -1 lower), colour, decimals]
+  const M = [
+    ['Sleep', sleepH, (v) => fmtHM(v).replace(' m', 'm').replace(' h ', 'h '), '', 1, 'var(--mind)', 1],
+    ['HRV', (d) => H(d).hrv, (v) => Math.round(v), ' ms', 1, 'var(--mind)', 0],
+    ['Resting HR', (d) => H(d).rhr, (v) => Math.round(v), ' bpm', -1, 'var(--fuel)', 0],
+    ['Walking HR', (d) => H(d).whr, (v) => Math.round(v), ' bpm', -1, 'var(--fuel)', 0],
+    ['VO2 max', (d) => H(d).vo2, (v) => v.toFixed(1), '', 1, 'var(--good)', 1],
+    ['Breathing rate', (d) => H(d).resp, (v) => v.toFixed(1), ' /min', -1, 'var(--mind)', 1],
+    ['Blood oxygen', (d) => H(d).spo2, (v) => Math.round(v), '%', 1, 'var(--mind)', 0],
+    ['Steps', (d) => H(d).steps, (v) => fmtN(v), '', 1, 'var(--train)', 0],
+    ['Active energy', (d) => H(d).kcal, (v) => fmtN(v), ' kcal', 1, 'var(--fuel)', 0],
+    ['Exercise', (d) => H(d).exmin, (v) => Math.round(v), ' min', 1, 'var(--train)', 0],
+    ['Weight', (d) => { const x = num(peek(d).weight); return x == null ? null : x; }, (v) => v.toFixed(1), ' ' + S.settings.unit, 0, 'var(--train)', 1]
+  ];
+  const spark = (pts, col) => {
+    const xs = pts.filter((p) => p != null);
+    if (xs.length < 2) return '<div class="grow"></div>';
+    const lo = Math.min(...xs), hi = Math.max(...xs), W = 100, Hh = 30, rng = hi - lo || 1, step = W / (pts.length - 1);
+    let path = '', pen = false, lastX = 0, lastY = 0;
+    pts.forEach((v, i) => { if (v == null) { pen = false; return; } lastX = i * step; lastY = 3 + (1 - (v - lo) / rng) * (Hh - 6); path += (pen ? 'L' : 'M') + lastX.toFixed(1) + ' ' + lastY.toFixed(1); pen = true; });
+    return '<svg class="grow" viewBox="0 0 ' + W + ' ' + Hh + '" preserveAspectRatio="none" style="height:34px;min-width:0;overflow:visible"><path d="' + path + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/><circle cx="' + lastX.toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="2.6" fill="' + col + '" vector-effect="non-scaling-stroke"/></svg>';
+  };
+  const buckets = (get, agg) => Array.from({ length: 14 }, (_, k) => {
+    const xs = []; for (let j = 0; j < B; j++) { const v = get(addDays(t, -((13 - k) * B + (B - 1 - j)))); if (v != null) xs.push(v); }
+    return xs.length ? agg(xs) : null;
+  });
+  const change = (cur, base, dir, dec, unit) => {
+    if (cur == null || base == null) return '<span class="xs muted">Not enough history</span>';
+    const dlt = cur - base, f = Math.pow(10, dec), shown = Math.round(dlt * f) / f, pct = base ? Math.abs(dlt / base) : 0;
+    if (!shown || pct < 0.02 || !dir) return '<span class="xs muted tnum">' + (shown ? (shown > 0 ? '+' : '−') + Math.abs(shown).toFixed(dec) : 'No change') + '</span>';
+    const good = dir * dlt > 0;
+    return '<span class="xs tnum" style="font-weight:600;color:var(--' + (good ? 'good' : 'bad') + ')">' + (dlt > 0 ? '▲ +' : '▼ −') + Math.abs(shown).toFixed(dec) + '</span>';
+  };
+  let rows = '', any = false;
+  const avgOver = (get, from, to) => { const xs = []; for (let i = from; i < to; i++) { const v = get(addDays(t, -i)); if (v != null) xs.push(v); } return xs.length ? mean(xs) : null; }; // one reading is enough: VO2 max and weight are sparse
+  M.forEach(([name, get, fmt, unit, dir, col, dec]) => {
+    const pts = buckets(get, mean);
+    if (!pts.some((p) => p != null)) return;
+    any = true;
+    let cur = avgOver(get, 0, 7), base = avgOver(get, 7, N);
+    if (name === 'Weight') { const w = weights(); cur = avgOver(get, 0, 7); if (cur == null && w.length) cur = w[w.length - 1].w; }
+    const wt = name === 'Weight', sleepv = name === 'Sleep';
+    let shownCur = cur, dd = dec;
+    if (sleepv) dd = 1;
+    rows += '<div class="row" style="gap:12px"><div style="width:104px;flex:none"><div class="small fg2">' + name + '</div><div class="h-md tnum">' + (shownCur == null ? '–' : fmt(shownCur)) + '<span class="muted" style="font-size:12px;font-weight:500">' + (shownCur == null ? '' : unit) + '</span></div></div>' + spark(pts, col) + '<div style="width:92px;flex:none;text-align:right">' + (wt ? change(cur, base, 0, dd, unit) : change(cur, base, dir, dd, unit)) + '</div></div>';
+  });
+  // workouts per week: count + minutes, last 7 days vs the weekly average before
+  const wkSeries = buckets((d) => wkMin(d), (xs) => mean(xs)), wkAny = Array.from({ length: N }, (_, i) => wkCount(addDays(t, -i))).some((x) => x);
+  if (wkAny) {
+    any = true;
+    let n7 = 0, m7 = 0, nb = 0, mb = 0; for (let i = 0; i < 7; i++) { n7 += wkCount(addDays(t, -i)); m7 += wkMin(addDays(t, -i)); }
+    for (let i = 7; i < N; i++) { nb += wkCount(addDays(t, -i)); mb += wkMin(addDays(t, -i)); }
+    const wks = (N - 7) / 7, base = wks > 0 ? mb / wks : null;
+    rows += '<div class="row" style="gap:12px"><div style="width:104px;flex:none"><div class="small fg2">Workouts / wk</div><div class="h-md tnum">' + n7 + '<span class="muted" style="font-size:12px;font-weight:500"> · ' + Math.round(m7) + ' min</span></div></div>' + spark(wkSeries, 'var(--train)') + '<div style="width:92px;flex:none;text-align:right">' + change(m7, base, 1, 0, ' min') + '</div></div>';
+  }
+  let h = '<section class="pad section"><div class="sec-h"><h2 class="h-md">Health trends</h2><span class="small muted">Last 7 days vs before</span></div>';
+  h += '<div class="row" style="gap:6px;margin-bottom:10px">' + HKP_RANGES.map((r) => '<button class="chip' + (r === N ? ' good' : '') + '" style="flex:1;justify-content:center;padding:7px 0" data-a="hkRange" data-v="' + r + '">' + r / 7 + ' weeks</button>').join('') + '</div>';
+  if (!any) return h + '<div class="card small fg2">No Health data in this range yet. Run a sync to fill it in.<button class="btn sm" style="margin-top:10px;display:block" data-a="push" data-v="health">Open Health</button></div></section>';
+  return h + '<div class="card stack">' + rows + '</div><p class="xs muted" style="margin:8px 2px 0">Green means moving the right way: lower heart rate and breathing, higher HRV, VO2, sleep, steps and activity.</p></section>';
+}
+A.hkRange = (el) => { ui.hkRange = +el.dataset.v; render(); };
 /* calibration: the plan says cut 150 kcal *or* add 2,000 steps; with Health steps we can say which */
 function hkCalNote(c) {
   if (!c || c.act >= 0) return '';
@@ -611,7 +696,7 @@ function hkFitnessCard() {
   if (!rows && !wk.length) return '';
   let h = '<div class="card stack">';
   if (rows) h += '<h3 class="h-sm">Heart &amp; fitness</h3><div>' + rows + '</div>';
-  if (wk.length) h += '<h3 class="h-sm"' + (rows ? ' style="margin-top:6px"' : '') + '>Recent workouts</h3><div>' + wk.map(([d, w]) => '<div class="row" style="gap:12px;padding:5px 0"><span class="xs muted" style="width:64px">' + fmtShort(d) + '</span><span class="grow small">' + esc(w.n) + '</span><span class="small tnum muted">' + w.min + ' min' + (w.kcal != null ? ' · ' + w.kcal + ' kcal' : '') + '</span></div>').join('') + '</div>';
+  if (wk.length) h += '<h3 class="h-sm"' + (rows ? ' style="margin-top:6px"' : '') + '>Recent workouts</h3><div>' + wk.map(([d, w]) => '<div class="row" style="gap:12px;padding:5px 0"><span class="xs muted" style="width:64px">' + fmtShort(d) + '</span><span class="grow small">' + esc(w.n) + '</span><span class="small tnum muted">' + w.min + ' min' + (w.kcal != null ? ' · ' + (w.est ? '~' : '') + w.kcal + ' kcal' : '') + (w.hr ? ' · ' + w.hr + ' bpm' : '') + '</span></div>').join('') + '</div>';
   return h + '</div>';
 }
 function hkHasLabel(has) {

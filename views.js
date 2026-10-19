@@ -424,14 +424,11 @@ function restOverview(s, date, P) {
 /* ------------------------------------------------------------------ FUEL */
 function vFuel() {
   const date = ui.date, tg = targets(date), tt = totals(date), d = peek(date), dw = dowOf(date), P = plan(date);
-  let h = topHeader(esc(date === todayISO() ? 'Today · ' + fmtD(date) : fmtD(date)), 'Fuel', avatarBtn());
+  let h = topHeader(esc(date === todayISO() ? 'Today · ' + fmtD(date) : fmtD(date)), 'Fuel', aiHeaderRight());
   h += '<div class="pad">' + strip(date, 'var(--fuel)') + '</div>';
-  const left = tg.kcal - tt.kcal;
-  h += '<section class="pad section" style="margin-top:18px"><div class="card"><div class="row" style="gap:18px"><div class="bigring">' + ringSVG(tt.kcal / tg.kcal, 132, 12, 'var(--fuel)') + '<div class="c"><div class="big-num tnum" style="font-size:38px">' + fmtN(Math.abs(left)) + '</div><div class="xs muted">' + (left >= 0 ? 'kcal left' : 'kcal over') + '</div></div></div>' +
-    '<div class="grow stack" style="gap:9px">' + macroBar('Protein', tt.p, tg.p[0], 'g', 'var(--fuel)', tg.p[0] + '–' + tg.p[1]) + macroBar('Carbs', tt.c, tg.carbs ? tg.carbs[1] : 300, 'g', 'var(--train)', tg.carbs ? tg.carbs[0] + '–' + tg.carbs[1] : 'the rest') + macroBar('Fat', tt.f, tg.fat[1], 'g', 'var(--mind)', tg.fat[0] + '–' + tg.fat[1]) + '</div></div>' +
-    '<div class="row" style="justify-content:space-between;margin-top:14px;border-top:1px solid var(--line);padding-top:12px"><span class="small fg2">' + esc(tg.label) + (S.settings.kcalAdj ? ' (' + (S.settings.kcalAdj > 0 ? '+' : '') + S.settings.kcalAdj + ' calibration)' : '') + '</span><span class="small tnum"><b>' + fmtN(tt.kcal) + '</b> / ' + fmtN(tg.kcal) + ' kcal</span></div></div></section>';
+  h += '<section class="pad section" style="margin-top:18px">' + aiHeroHTML(date) + '</section>';
 
-  h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Meals</h2><button class="link" data-a="logPlan">Log the whole plan</button></div>';
+  h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Meals</h2><button class="link" data-a="logPlan">Log the whole plan</button></div>' + aiJobsHTML(date);
   D.SLOTS.forEach((sl) => {
     const pf = plannedFood(date, sl.id), logged = mealsFor(date).map((m, i) => Object.assign({ i }, m)).filter((m) => m.slot === sl.id);
     if (!pf && !logged.length && sl.id === 'pre') return;
@@ -441,6 +438,7 @@ function vFuel() {
     h += '</div></div>';
   });
   h += '</section>';
+  h += aiExHTML(date);
 
   // water + supplements
   h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Water</h2><span class="small muted tnum">' + ((d.water || 0) * 0.5).toFixed(1) + ' / 4 L' + (P.sessions.some((s) => s.type === 'hiit' || s.type === 'cardio') ? ' · electrolytes today' : '') + '</span></div><div class="water">';
@@ -463,7 +461,7 @@ function vFuel() {
   h += '<section class="pad section"><div class="card row"><div class="grow"><div class="h-sm">Free meals this week</div><div class="small muted" style="margin-top:3px">' + (fcap === 1 ? 'One a week in Peak (Weeks 11–12). Holiday days don’t count.' : 'Two a week at lunch. Anchor with 40+ g protein, one sitting.') + '</div></div><div class="big-num tnum" style="font-size:40px;color:' + (fm > fcap ? 'var(--bad)' : 'var(--fuel)') + '">' + fm + '<span class="muted" style="font-size:22px">/' + fcap + '</span></div></div></section>';
 
   h += '<section class="section"><div class="sec-h pad"><h2 class="h-md">Guides</h2></div><div class="rail pad">' + D.GUIDES.map((g) => '<button class="tile" data-a="sheet" data-v="guide" data-s="' + g.id + '"><div class="art art-' + g.tone + '" style="display:grid;place-items:center">' + foodGlyph(g.tone, 54) + '</div><div class="tx"><div class="tt">' + esc(g.t) + '</div></div></button>').join('') + '</div></section>';
-  return h;
+  return h + aiFab();
 }
 const FOOD_GLYPH = {
   eggs: '<ellipse cx="12" cy="13" rx="6.5" ry="8"/><path d="M9 12.5c.5-2 1.5-3 3-3.5"/>',
@@ -481,8 +479,10 @@ function macroBar(n, v, max, u, color, range) {
   return '<div><div class="row" style="justify-content:space-between"><span class="small fg2">' + n + '</span><span class="xs tnum"><b>' + Math.round(v) + '</b> <span class="muted">/ ' + range + ' ' + u + '</span></span></div><div class="bar" style="margin-top:5px;height:7px"><i style="width:' + clamp(v / max * 100, 0, 100) + '%;background:' + color + '"></i></div></div>';
 }
 function foodCard(f, right, note, slot) {
-  const tone = f.tone || (foodById(f.fid) || {}).tone || 'plate';
-  return '<div class="food"><button class="row grow" style="gap:12px;text-align:left;min-width:0" data-a="sheet" data-v="foodInfo" data-s="' + (f.fid || f.id) + '"><span class="fa art-' + tone + '">' + foodGlyph(tone, 30) + '</span><span class="grow" style="min-width:0"><span class="ft" style="display:block">' + esc(f.n) + '</span><span class="fs" style="display:block">' + fmtN(f.kcal * (f.q || 1)) + ' kcal · ' + Math.round(f.p * (f.q || 1)) + ' g protein</span>' + (note ? '<span class="xs" style="display:block;color:var(--fg-2);margin-top:2px">' + esc(note) + '</span>' : '') + '</span></button>' + right + '</div>';
+  const tone = f.tone || (foodById(f.fid) || {}).tone || 'plate', th = f.ai && typeof aiThumb === 'function' ? aiThumb(f.ai.id) : null;
+  const act = f.ai ? 'data-a="aiMeal" data-v="' + esc(f.ai.id) + '"' : 'data-a="sheet" data-v="foodInfo" data-s="' + (f.fid || f.id) + '"';
+  const fa = th ? '<span class="fa"><img src="' + th + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></span>' : '<span class="fa art-' + tone + '">' + foodGlyph(tone, 30) + '</span>';
+  return '<div class="food"><button class="row grow" style="gap:12px;text-align:left;min-width:0" ' + act + '>' + fa + '<span class="grow" style="min-width:0"><span class="ft" style="display:block">' + esc(f.n) + '</span><span class="fs" style="display:block">' + fmtN(f.kcal * (f.q || 1)) + ' kcal · ' + Math.round(f.p * (f.q || 1)) + ' g protein</span>' + (note ? '<span class="xs" style="display:block;color:var(--fg-2);margin-top:2px">' + esc(note) + '</span>' : '') + '</span></button>' + right + '</div>';
 }
 
 /* ------------------------------------------------------------------ MIND */
@@ -547,6 +547,7 @@ function vProgress() {
   h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">This week</h2></div><div class="kv"><div><div class="v tnum">' + sess + '<span class="muted" style="font-size:16px">/' + sessT + '</span></div><div class="k">Sessions</div></div><div><div class="v tnum">' + prot + '<span class="muted" style="font-size:16px">/7</span></div><div class="k">Protein days</div></div><div><div class="v tnum">' + Math.round(mm) + '</div><div class="k">Mind minutes</div></div></div></section>';
 
   h += hkTrends();
+  h += hkProgress();
 
   // trends
   h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Check-ins, last 14 days</h2></div><div class="card stack">' + [['neck', 'Neck', 10, 'var(--bad)'], ['back', 'Low back', 10, 'var(--warn)'], ['stress', 'Stress', 10, 'var(--mind)']].map(([k, n, max, col]) => {
@@ -633,6 +634,7 @@ function lSettings() {
     '<div class="row"><span class="grow"><span style="font-weight:600;display:block">Ocean sound under meditations</span><span class="small muted">Soft background swell</span></span><button class="toggle' + (st.ambient ? ' on' : '') + '" data-a="setting" data-k="ambient" data-v="' + (!st.ambient) + '" aria-pressed="' + !!st.ambient + '" aria-label="Ocean sound"></button></div>' +
     '<div class="row"><span class="grow"><span style="font-weight:600;display:block">Calorie adjustment</span><span class="small muted">From the calibration rule</span></span><div class="row" style="gap:6px"><button class="icon-btn" style="width:36px;height:36px" data-a="kcalAdj" data-v="-150" aria-label="Minus 150">' + ic('minus') + '</button><span class="tnum" style="min-width:52px;text-align:center;font-weight:700">' + (st.kcalAdj > 0 ? '+' : '') + (st.kcalAdj || 0) + '</span><button class="icon-btn" style="width:36px;height:36px" data-a="kcalAdj" data-v="150" aria-label="Plus 150">' + ic('plus') + '</button></div></div></div>';
   h += hkSettingsCard();
+  h += aiSettingsCard();
   h += '<div class="card stack"><div class="row"><span class="grow"><span style="font-weight:600;display:block">Storage</span><span class="small muted">' + syncLabel() + '</span><span class="small muted" style="display:block">' + storageDetail() + '</span></span></div><div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn ghost sm" data-a="exportData">Save a backup file</button><label class="btn ghost sm" style="cursor:pointer">Restore backup<input type="file" accept="application/json,.json" data-in="import" hidden></label></div><p class="xs muted" style="margin:0">Your logs are private to you. Backups are a JSON file you keep.</p></div>';
   h += '<div class="card"><h3 class="h-sm">Red flags: see a doctor now</h3><ul class="small fg2" style="margin:8px 0 0;padding-left:18px">' + D.RED_FLAGS.map((x) => '<li style="margin:4px 0">' + esc(x) + '</li>').join('') + '</ul><p class="small muted" style="margin:8px 0 0">For the MRI in Sri Lanka: bring your PT notes and dates, and have a spine specialist go through the scan with you.</p></div>';
   h += '<div class="card"><div class="row"><span class="grow"><span style="font-weight:600;display:block">Reset everything</span><span class="small muted">Deletes all logs on this device and in sync</span></span><button class="btn ghost sm" style="color:var(--bad)" data-a="resetAsk">' + (ui.resetArm ? 'Tap again to confirm' : 'Reset') + '</button></div></div>';
@@ -649,6 +651,7 @@ function renderSheet(sh) {
       : '<button class="btn train block" style="margin-top:16px" data-a="closeSheet">Done</button>';
     return '<h2 class="h-lg">Readiness</h2><p class="small fg2" style="margin:6px 0 12px">' + esc(fmtD(rd)) + '. Thirty seconds, then train.</p>' + readinessForm(rd) + (ok ? '<div style="margin-top:14px">' + tierBanner(rd) + '</div>' : '') + cta;
   }
+  if (AI_SHEETS.includes(sh.v)) return aiRenderSheet(sh.v);
   if (sh.v === 'hkpaste') return hkPasteSheet();
   if (sh.v === 'hkback') return hkBackSheet();
   if (sh.v === 'exinfo') return exInfoSheet(p);
@@ -702,7 +705,7 @@ function exInfoSheet(p) {
 function foodSheet(p) {
   const slot = p.s || 'snack', sl = D.SLOTS.find((x) => x.id === slot) || {};
   const recents = []; Object.keys(S.days).sort().reverse().forEach((d) => (S.days[d].meals || []).forEach((m) => { if (m.custom && !recents.some((r) => r.n === m.n)) recents.push(m); }));
-  let s = '<h2 class="h-lg">Add to ' + esc(sl.n || 'meals') + '</h2><p class="small fg2" style="margin:6px 0 12px">Tap to log. Your plan’s meals come first.</p>';
+  let s = '<h2 class="h-lg">Add to ' + esc(sl.n || 'meals') + '</h2><p class="small fg2" style="margin:6px 0 12px">Tap to log. Your plan’s meals come first.</p>' + aiButtons(slot, 'margin-bottom:14px');
   const mine = D.FOODS.filter((f) => f.slot === slot), others = D.FOODS.filter((f) => f.slot !== slot);
   s += '<div class="stack" style="gap:8px">' + mine.map((f) => foodPick(f, slot)).join('') + '</div>';
   if (recents.length) s += '<div class="lbl" style="margin-top:16px">Your recent</div><div class="stack" style="gap:8px">' + recents.slice(0, 6).map((f) => foodPick(f, slot, true)).join('') + '</div>';
@@ -760,7 +763,7 @@ A.eat = (el) => {
 A.eatCustom = (el) => {
   let src = null; Object.keys(S.days).forEach((d) => (S.days[d].meals || []).forEach((m) => { if (m.custom && m.n === el.dataset.v) src = m; }));
   if (!src) return; const d = day(ui.date); d.meals = d.meals || [];
-  d.meals.push(Object.assign({}, src, { slot: el.dataset.s })); touch(ui.date); ui.sheet = null; render(); toast(src.n + ' logged');
+  d.meals.push(Object.assign(aiCloneMeal(src), { slot: el.dataset.s })); touch(ui.date); ui.sheet = null; render(); toast(src.n + ' logged');
 };
 A.customFood = (el) => {
   const n = ($('#cfName').value || '').trim(), kcal = num($('#cfKcal').value), p = num($('#cfP').value) || 0;
