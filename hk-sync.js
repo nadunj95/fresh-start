@@ -12,7 +12,7 @@
 'use strict';
 
 const HK_API = 'https://fresh-start-health.nadunj95.workers.dev'; // Cloudflare Worker (free plan), health-sync/api
-const HKS_RELEASE = '1.0.0'; // newest shortcut release (health-sync/RELEASE); older shortcuts get an "update" note
+const HKS_RELEASE = '1.1.0'; // newest shortcut release (health-sync/RELEASE); older shortcuts get an "update" note
 const HKS_RUN_URL = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Fresh Start Sync');
 const HKS_READ_KEY = 'fs_hk_read', HKS_META_KEY = 'fs_hk_meta', HKS_API_KEY = 'fs_hk_api';
 const HKS_STALE_H = 36, HKS_POLL_MS = 4000, HKS_POLL_MAX = 3 * 60000, HKS_KEEP_DAYS = 400, HKS_MIN_GAP = 20000;
