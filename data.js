@@ -61,7 +61,7 @@
     goblet_box: { n: 'Goblet squat to box, heels elevated', img: 'Goblet_Squat', eq: 'Dumbbell or kettlebell · box · wedge', m: 'Quads, glutes', lower: true,
       cues: ['Heels on a wedge or plates, box behind you.', '3 s down to touch the box, no plopping.', 'Elbows inside the knees, chest tall.'] },
     db_rdl: { n: 'DB Romanian deadlift', img: 'Stiff-Legged_Dumbbell_Deadlift', eq: 'Dumbbells', m: 'Hamstrings, glutes', lower: true, swapTo: 'pull_through',
-      cues: ['Soft knees, push the hips back.', 'Dumbbells close to the legs, back flat.', 'Pain-free range only. If the low back goes above 2/10, swap to cable pull-through.'] },
+      cues: ['Soft knees, push the hips back.', 'Dumbbells close to the legs, back flat.', 'Controlled range, hips back, neutral spine.'] },
     pull_through: { n: 'Cable pull-through', img: 'Band_Good_Morning_Pull_Through', eq: 'Cable · rope', m: 'Glutes, hamstrings', lower: true,
       cues: ['Face away from the cable, rope between the legs.', 'Hinge back, then drive the hips through.', 'Squeeze the glutes at the top; no lower-back extension.'] },
     leg_press: { n: 'Leg press', img: 'Leg_Press', eq: 'Leg press machine', m: 'Quads, glutes', lower: true,
@@ -157,7 +157,7 @@
     trapbar_jump: { n: 'Trap-bar jump or box jump', img: 'Freehand_Jump_Squat', eq: 'Light trap bar or box', m: 'Power',
       cues: ['Light load, maximum intent.', 'Quarter dip, explode up.', 'Land soft, reset each rep.'] },
     landmine_rot: { n: 'Landmine rotational press', img: 'Landmine_180s', eq: 'Landmine · barbell', m: 'Rotational power', side: true, gate: 'rotation', alt: 'pallof',
-      cues: ['Load the back hip, then rotate and press.', 'Pivot the back foot.', 'Only once morning back pain is 0.'] },
+      cues: ['Load the back hip, then rotate and press.', 'Pivot the back foot.', 'Brace, then rotate from the hips.'] },
     hanging_leg_raise: { n: 'Hanging leg raise', img: 'Hanging_Leg_Raise', eq: 'Pull-up bar', m: 'Lower abs', neckAlt: 'rc_hip_lift',
       cues: ['Dead hang, shoulders active.', 'Curl the pelvis up, not just the legs.', 'No swinging.'] },
     goblet_squat: { n: 'Goblet squat', img: 'Goblet_Squat', eq: 'Dumbbell or kettlebell', m: 'Quads, glutes', lower: true,
@@ -165,7 +165,7 @@
     run: { n: 'Run', img: 'Running_Treadmill', eq: 'Road, track or treadmill', m: 'Aerobic base',
       cues: ['Zone 2: full sentences, nose breathing, roughly 120–140 bpm.', 'The talk test wins over the watch.', 'Relaxed shoulders, quick light steps.'] },
     swim: { n: 'Swim (backstroke or snorkel)', fig: 'swim', eq: 'Pool · pull buoy · centre snorkel', m: 'Aerobic base',
-      cues: ['Backstroke, pull buoy, or freestyle with a centre-mount snorkel.', 'No freestyle with head turns until the MRI.', 'Easy and continuous.'] },
+      cues: ['Backstroke, pull buoy, or freestyle with a centre-mount snorkel.', 'No freestyle with head turns until your specialist clears you.', 'Easy and continuous.'] },
     walk: { n: 'Walk', img: 'Walking_Treadmill', eq: 'Outside if you can', m: 'Recovery, steps',
       cues: ['Nose breathing.', 'Daily target 9,000–11,000 steps.', 'Once a week: phone-free.'] },
 
@@ -239,13 +239,13 @@
     hang_oblique: { n: 'Alternating hanging oblique knee raise', img: 'Knee_Hip_Raise_On_Parallel_Bars', eq: "Bar or captain's chair", m: 'Obliques', neckAlt: 'side_plank_dips',
       cues: ['Raise the knees toward one elbow.', 'Alternate sides.', 'Control the descent.'] },
     landmine_rainbow: { n: 'Landmine rainbow', img: 'Landmine_180s', eq: 'Landmine · barbell', m: 'Obliques', gate: 'backgate', alt: 'cable_chop',
-      cues: ['Arms long, sweep the bar side to side.', 'Hips and ribs stay square.', 'Back gate: back pain 0 for 3 weeks.'] },
+      cues: ['Arms long, sweep the bar side to side.', 'Hips and ribs stay square.'] },
     cable_lift: { n: 'Half-kneeling cable lift', img: 'Standing_Cable_Lift', eq: 'Cable · rope', m: 'Obliques',
       cues: ['Low to high across the body.', 'Switch sides at 20 s.', 'Ribs down.'] },
     weighted_rope_crunch: { n: 'Weighted rope cable crunch', img: 'Cable_Crunch', eq: 'Cable · rope', m: 'Upper abs',
       cues: ['Heavier than Phase 2.', 'Curl ribs to pelvis.', 'Neck neutral.'] },
     vup: { n: 'V-up', img: 'Jackknife_Sit-Up', eq: 'Floor', m: 'Abs', gate: 'backgate', alt: 'tuck_up',
-      cues: ['Arms and legs meet over the hips.', 'Lower with control.', 'Back gate: back pain 0 for 3 weeks.'] },
+      cues: ['Arms and legs meet over the hips.', 'Lower with control.'] },
     tuck_up: { n: 'Tuck-up', img: 'Tuck_Crunch', eq: 'Floor', m: 'Abs',
       cues: ['Knees and chest come together.', 'Exhale hard.', 'Lower slowly.'] },
     side_plank_leg: { n: 'Side plank with top-leg raise', img: 'Side_Bridge', eq: 'Floor', m: 'Obliques, glute med',
@@ -253,7 +253,7 @@
     stir_pot: { n: 'Stir-the-pot', fig: 'stir_pot', eq: 'Stability ball', m: 'Anti-extension, anti-rotation',
       cues: ['Forearm plank on a ball.', 'Draw small circles with the forearms.', 'Switch direction halfway.'] },
     dragon_flag: { n: 'Dragon flag negative', img: 'Flat_Bench_Lying_Leg_Raise', eq: 'Bench', m: 'Abs', gate: 'backgate', alt: 'lying_leg_raise',
-      cues: ['Hold the bench behind your head.', 'Body straight from shoulders, lower slowly.', 'Back gate: back pain 0 for 3 weeks.'] },
+      cues: ['Hold the bench behind your head.', 'Body straight from shoulders, lower slowly.'] },
     lying_leg_raise: { n: 'Lying leg raise with hip lift', img: 'Flat_Bench_Lying_Leg_Raise', eq: 'Bench or floor', m: 'Lower abs',
       cues: ['Raise the legs to vertical.', 'Lift the hips off the bench.', 'Lower slowly, back flat.'] },
     russian_twist: { n: 'Plate Russian twist, feet down', img: 'Russian_Twist', eq: 'Plate', m: 'Obliques', gate: 'backgate', alt: 'pallof_sw',
@@ -263,7 +263,7 @@
     weighted_suitcase: { n: 'Heavy suitcase carry', fig: 'suitcase', eq: 'Dumbbell or kettlebell', m: 'Obliques, grip', neckAlt: 'side_plank_sw',
       cues: ['Walk tall with one heavy weight.', 'Switch sides at 20 s.', "Don't lean."] },
 
-    /* Armor, Rehab Ramp, Deep Core */
+    /* Deep Core */
     breath_9090: { n: '90/90 breathing', fig: 'breath9090', eq: 'Wall', m: 'Diaphragm, rib position', audio: 'ninety',
       cues: ['Feet on a wall, hips and knees at 90°.', '5 s in through the nose, 7 s out.', 'Ribs down.'] },
     chin_tuck: { n: 'Chin tuck holds', fig: 'chin_tuck', eq: 'None', m: 'Deep neck flexors',
@@ -313,20 +313,20 @@
   const I = (k, ex, sets, reps, rest, more) => Object.assign({ k, ex, sets, reps, rest }, more || {});
 
   const P1 = {
-    pull: { title: 'Pull', dur: '60–70 min', ramp: 'pull', core: 'A', hero: 'cs_db_row', items: [
+    pull: { title: 'Pull', dur: '60–70 min', ramp: null, core: 'A', hero: 'cs_db_row', items: [
       I('A', 'cs_db_row', 4, '8–10', 90),
       I('B1', 'ng_pulldown', 3, '10–12', 0), I('B2', 'prone_y', 3, '10', 60),
       I('C1', 'hk_cable_row', 3, '12', 0, { side: true }), I('C2', 'face_pull', 3, '15', 60, { note: 'To the ears, rotate out' }),
       I('D1', 'incline_db_curl', 3, '10–12', 0), I('D2', 'hammer_curl', 3, '10–12', 45),
     ] },
-    legs: { title: 'Legs', dur: '60–70 min', ramp: 'legs', core: 'B', hero: 'goblet_box', items: [
+    legs: { title: 'Legs', dur: '60–70 min', ramp: null, core: 'B', hero: 'goblet_box', items: [
       I('A', 'goblet_box', 4, '8–10', 90, { note: 'Heels elevated, 3 s down' }),
-      I('B', 'db_rdl', 3, '10–12', 90, { note: 'Pain-free range. Swap to cable pull-through if the low back goes above 2/10' }),
+      I('B', 'db_rdl', 3, '10–12', 90, { note: 'Controlled range, hips back, neutral spine' }),
       I('C1', 'leg_press', 3, '12–15', 0, { note: 'Controlled depth' }), I('C2', 'seated_leg_curl', 3, '12–15', 60),
       I('D1', 'hip_thrust', 3, '10–12', 0), I('D2', 'copenhagen_short', 3, '', 60, { time: 15, side: true }),
       I('E1', 'calf_raise', 3, '12–15', 0, { note: '2 s pause at the bottom' }), I('E2', 'pallof', 2, '10', 45, { side: true }),
     ] },
-    push: { title: 'Push', dur: '60–70 min', ramp: 'push', core: 'C', hero: 'db_bench', items: [
+    push: { title: 'Push', dur: '60–70 min', ramp: null, core: 'C', hero: 'db_bench', items: [
       I('A', 'db_bench', 4, '8–10', 90),
       I('B', 'landmine_press', 3, '10', 75, { side: true }),
       I('C1', 'cable_fly', 3, '12–15', 0), I('C2', 'cable_lateral', 3, '12–15', 60, { note: 'Stop below shoulder height, shoulders down' }),
@@ -336,7 +336,7 @@
   };
 
   const P2 = {
-    pull: { title: 'Pull', dur: '60–70 min', ramp: 'pull', core: 'A', hero: 'ng_pullup', items: [
+    pull: { title: 'Pull', dur: '60–70 min', ramp: null, core: 'A', hero: 'ng_pullup', items: [
       I('A', 'ng_pullup', 4, '8', 120, { scheme: 'top', topReps: '5–6', topRIR: '1', backPct: 10, note: 'Top set 1 × 5–6 @ RIR 1, then 3 × 8 at −10%. Add weight once 3 × 8 at bodyweight is easy', bw: true }),
       I('B', 'tbar_row', 3, '8–10', 90, { tech: 'Rest-pause last set' }),
       I('C1', 'cable_row_1arm', 2, '10–12', 0, { side: true }), I('C2', 'face_pull', 2, '15', 60),
@@ -344,16 +344,16 @@
       I('E1', 'ez_curl', 2, '8–12', 0, { tech: 'Myo-reps last set' }), I('E2', 'hammer_curl', 2, '10–12', 45),
       I('F', 'farmer', 2, '', 60, { dist: '40 m', note: 'Moderate, shoulders packed. Skip if the neck is above 2', neckSkip: 2 }),
     ] },
-    legs: { title: 'Legs', dur: '60–70 min', ramp: 'legs', core: 'B', hero: 'trapbar', items: [
-      I('A', 'trapbar', 3, '8', 150, { scheme: 'top', topReps: '5', topRIR: '1–2', backPct: 15, note: 'Gated. Top set 1 × 5 @ RIR 1–2, then 2 × 8 at −15%' }),
+    legs: { title: 'Legs', dur: '60–70 min', ramp: null, core: 'B', hero: 'trapbar', items: [
+      I('A', 'trapbar', 3, '8', 150, { scheme: 'top', topReps: '5', topRIR: '1–2', backPct: 15, note: 'Top set 1 × 5 @ RIR 1–2, then 2 × 8 at −15%' }),
       I('B', 'hack_squat', 3, '6–10', 120, { tech: 'Rest-pause last set' }),
       I('C', 'bulgarian', 3, '8–10', 90, { side: true, tech: 'Last set to failure' }),
       I('D1', 'seated_leg_curl', 2, '10–12', 0, { tech: 'Drop set last set' }), I('D2', 'leg_ext', 2, '12–15', 45),
       I('E1', 'calf_raise', 3, '8–12', 0), I('E2', 'copenhagen_long', 2, '', 45, { time: 20, timeLabel: '15–25 s', side: true }),
-      I('F', 'reverse_hyper', 3, '12–15', 60, { note: 'Only if morning back pain is 0–2; otherwise the app swaps to a glute bridge' }),
+      I('F', 'reverse_hyper', 3, '12–15', 60, { note: 'Controlled reps, no swinging' }),
       I('G', 'nordic', 2, '4–6', 90, { note: '5-s lowering, catch with your hands' }),
     ] },
-    push: { title: 'Push', dur: '60–70 min', ramp: 'push', core: 'C', hero: 'bench', items: [
+    push: { title: 'Push', dur: '60–70 min', ramp: null, core: 'C', hero: 'bench', items: [
       I('A', 'bench', 4, '10', 120, { scheme: 'top', topReps: '6–8', topRIR: '1', backPct: 10, note: 'Top set 1 × 6–8 @ RIR 1, then 3 × 10 at −10%. Minimal arch. Barbell only when the neck is 0–1.' }),
       I('B', 'landmine_press', 3, '8–10', 90, { side: true, fromWeek: { 5: 'hk_db_press' }, note: 'Week 5+: half-kneeling 1-arm DB press if the overhead gate is open' }),
       I('C1', 'incline_db', 3, '10–12', 0), I('C2', 'cable_lateral', 2, '12–15', 60),
@@ -363,24 +363,24 @@
   };
 
   const P3 = {
-    pull: { title: 'Pull', dur: '60–70 min', ramp: 'pull', core: 'A', hero: 'w_pullup', items: [
+    pull: { title: 'Pull', dur: '60–70 min', ramp: null, core: 'A', hero: 'w_pullup', items: [
       I('A', 'w_pullup', 5, '3+2', 120, { tech: 'Cluster: 15 s between mini-sets', note: 'At ~5RM' }),
       I('B', 'pendlay', 4, '6–8', 90),
       I('C1', 'cable_row_1arm', 2, '12', 0, { side: true }), I('C2', 'face_pull', 2, '15', 0), I('C3', 'rear_delt_fly', 2, '15', 60),
       I('D1', 'ez_21s', 2, '21', 0, { note: '7 bottom half, 7 top half, 7 full' }), I('D2', 'hammer_curl', 1, '12–15 + 4×3–5', 60, { tech: 'Myo-reps', fromWeek: { 11: 'xbody_hammer' } }),
       I('E', 'row_erg', 1, '', 0, { kind: 'emom', minutes: 6, odd: { ex: 'row_erg', label: '12 cal row' }, even: { ex: 'inverted_row', label: '8 inverted rows' } }),
     ] },
-    legs: { title: 'Legs', dur: '60–70 min', ramp: 'legs', core: 'B', hero: 'trapbar', items: [
+    legs: { title: 'Legs', dur: '60–70 min', ramp: null, core: 'B', hero: 'trapbar', items: [
       I('A', 'trapbar', 3, '6', 150, { scheme: 'top', topReps: '3–5', topRIR: '1', backPct: 12, note: 'Top set 1 × 3–5 @ RIR 1, then 2 × 6 at −12%' }),
       I('B', 'hack_squat', 3, '8–10', 90, { tech: 'Rest-pause last set' }),
       I('C', 'walking_lunge', 3, '10', 90, { side: true }),
       I('D1', 'leg_ext', 2, '15', 0), I('D2', 'seated_leg_curl', 2, '12', 0), I('D3', 'hip_thrust', 2, '12', 45),
       I('E1', 'calf_raise', 3, '10–12', 0, { tech: 'Double drop last set' }), I('E2', 'copenhagen_long', 2, '', 45, { time: 25, timeLabel: '20–30 s', side: true }),
-      I('F', 'reverse_hyper', 3, '12–15', 60, { note: 'Only if morning back pain is 0–2; otherwise the app swaps to a glute bridge' }),
+      I('F', 'reverse_hyper', 3, '12–15', 60, { note: 'Controlled reps, no swinging' }),
       I('G', 'nordic', 2, '4–6', 90, { note: '5-s lowering, catch with your hands' }),
       I('H', 'air_bike', 1, '', 0, { kind: 'interval', rounds: 6, work: 15, restI: 45, optional: true, label: '6 × (15 s all-out / 45 s easy)' }),
     ] },
-    push: { title: 'Push', dur: '60–70 min', ramp: 'push', core: 'C', hero: 'bench', items: [
+    push: { title: 'Push', dur: '60–70 min', ramp: null, core: 'C', hero: 'bench', items: [
       I('A', 'bench', 3, '8', 120, { scheme: 'top', topReps: '4–6', topRIR: '1', backPct: 10, note: 'Top set 1 × 4–6 @ RIR 1, then 2 × 8 at −10%' }),
       I('B', 'seated_db_press', 3, '8–10', 90, { note: 'If the neck has been quiet 3+ weeks; otherwise landmine press' }),
       I('C', 'incline_db', 3, '10', 90, { tech: '2 straight sets, then 1 myo-rep set', fromWeek: { 11: 'incline_cable_press' } }),
@@ -401,12 +401,12 @@
       I('C', 'landmine_press', 3, '8', 60, { side: true }), I('D', 'hip_thrust', 3, '12', 60),
       I('E', 'farmer', 3, '', 60, { dist: '30 m' }), I('F', 'dead_bug', 2, '8', 45, { side: true }),
     ] },
-    taperFull: { title: 'Full-body pump', dur: '45 min', ramp: 'pull', core: 'A', hero: 'ng_pullup', type: 'lift', items: [
+    taperFull: { title: 'Full-body pump', dur: '45 min', ramp: null, core: 'A', hero: 'ng_pullup', type: 'lift', items: [
       I('A', 'ng_pullup', 2, '12–15', 45), I('B', 'bench', 2, '12–15', 45), I('C', 'cs_db_row', 2, '12–15', 45),
       I('D', 'landmine_press', 2, '12–15', 45, { side: true }), I('E', 'goblet_squat', 2, '12–15', 45), I('F', 'db_rdl', 2, '12–15', 45),
       I('G', 'ez_curl', 2, '12–15', 45), I('H', 'rope_pushdown', 2, '12–15', 45),
     ] },
-    taperUpper: { title: 'Upper-body pump', dur: '35 min', ramp: 'push', core: null, hero: 'incline_db', type: 'lift', items: [
+    taperUpper: { title: 'Upper-body pump', dur: '35 min', ramp: null, core: null, hero: 'incline_db', type: 'lift', items: [
       I('A1', 'incline_db', 3, '12–15', 0), I('A2', 'cable_row_1arm', 3, '12–15', 45, { side: true }),
       I('B1', 'cable_fly', 3, '15', 0), I('B2', 'face_pull', 3, '15', 45),
       I('C1', 'cable_lateral', 3, '15', 0), I('C2', 'rear_delt_fly', 3, '15', 30),
@@ -499,21 +499,6 @@
   /* ------------------------------------------------------------------ routines */
   const R = (ex, dose, more) => Object.assign({ ex, dose }, more || {});
   const ROUTINES = {
-    armor: { title: 'Daily Armor', sub: 'Neck, back and groin insurance', min: 12, hero: 'doorway_pec', steps: [
-      R('breath_9090', '5 breaths · 5 s in, 7 s out', { breaths: 5, inS: 5, outS: 7 }),
-      R('chin_tuck', '10 × 5 s', { holds: 10, hold: 5 }),
-      R('doorway_pec', '2 × 30 s per side', { time: 30, sets: 2, side: true }),
-      R('wall_slide', '10 reps', { reps: 10 }),
-      R('band_face_pull', '2 × 15', { reps: 15, sets: 2 }),
-      R('open_book', '6 per side', { reps: 6, side: true }),
-      R('nerve_slider', '10 slow reps per side, only if symptom-free', { reps: 10, side: true, optional: true }),
-      R('mcgill_curlup', 'Curl-up 5 × 8 s', { holds: 5, hold: 8, big3: true }),
-      R('side_plank', 'Side plank 3 × 15 s per side', { time: 15, sets: 3, side: true, big3: true }),
-      R('bird_dog', 'Bird dog 5 per side, 8 s holds', { holds: 5, hold: 8, side: true, big3: true }),
-    ] },
-    armorWed: { title: 'Wednesday add-on', sub: 'Hips and groin, 5 min', min: 5, hero: 'hip_flexor', steps: [
-      R('hip_switch', '8 per side', { reps: 8 }), R('rockback', '10 reps per side', { reps: 10, side: true }), R('hip_flexor', '2 × 30 s per side', { time: 30, sets: 2, side: true }),
-    ] },
     deepcore: { title: 'Deep Core', sub: 'Inner abs, every morning', min: 4, hero: 'vacuum', steps: [
       R('croc_breath', '5 breaths', { breaths: 5, inS: 4, outS: 6 }),
       R('draw_in', '5 × 10 s', { holds: 5, hold: 10 }),
@@ -521,40 +506,22 @@
       R('pelvic_lift', '10 × 5 s', { holds: 10, hold: 5 }),
       R('hollow_body', '3 × 15–30 s', { time: 20, sets: 3 }),
     ] },
-    ramp_pull: { title: 'Rehab Ramp', sub: 'Before every lift · Pull add-on', min: 8, hero: 'band_face_pull', steps: [] },
-    ramp_push: { title: 'Rehab Ramp', sub: 'Before every lift · Push add-on', min: 8, hero: 'band_face_pull', steps: [] },
-    ramp_legs: { title: 'Rehab Ramp', sub: 'Before every lift · Leg add-on', min: 8, hero: 'band_face_pull', steps: [] },
-    desk: { title: 'Desk reset', sub: 'Every 60 min · 2 min', min: 2, hero: 'doorway_pec', steps: [
-      R('chin_tuck', '5 chin tucks', { reps: 5 }), R('shoulder_down', '10 × down and back', { reps: 10 }),
-      R('doorway_pec', '30 s doorway stretch', { time: 30 }), R('stand_up', 'Stand up and move', { reps: 1 }),
-    ] },
   };
-  const RAMP_BASE = [
-    R('breath_9090', '5 breaths', { breaths: 5, inS: 5, outS: 7 }),
-    R('chin_tuck_dnf', '2 × 8 × 5 s', { holds: 16, hold: 5 }),
-    R('band_face_pull', '2 × 15', { reps: 15, sets: 2 }),
-    R('wall_slide', '1 × 10', { reps: 10 }),
-    R('cat_cow', '6 per side', { reps: 6 }),
-    R('bridge_squeeze', '1 × 12', { reps: 12 }),
-  ];
-  ROUTINES.ramp_pull.steps = RAMP_BASE.concat([R('scap_pullup', 'Scap pull-ups × 8', { reps: 8 })]);
-  ROUTINES.ramp_push.steps = RAMP_BASE.concat([R('band_er', '2 × 15 per side', { reps: 15, sets: 2, side: true }), R('pushup_plus', 'Push-up plus × 10', { reps: 10 })]);
-  ROUTINES.ramp_legs.steps = RAMP_BASE.concat([R('hip_airplane', 'Hip airplanes 5 per side', { reps: 5, side: true }), R('copenhagen_short', 'Copenhagen short lever 2 × 10 s', { time: 10, sets: 2, side: true }), R('monster_walk', '2 × 12 steps per side', { reps: 12, sets: 2, side: true })]);
 
   /* ---------------------------------------------------------------- calendar */
   const PHASES = [
-    { n: 1, name: 'Reload', weeks: [1, 2], color: 'var(--train)', focus: 'RIR 3 → 2, ~65% volume, baseline tests' },
-    { n: 2, name: 'Build & Burn', weeks: [3, 4, 5, 6], color: 'var(--train)', focus: 'Top sets, rest-pause, real sprints' },
+    { n: 1, name: 'Reload', weeks: [1, 3, 4], color: 'var(--train)', focus: 'Week 1 done · re-entry at RIR 3, then RIR 2' },
+    { n: 2, name: 'Build & Burn', weeks: [5, 6], color: 'var(--train)', focus: 'Top sets, isolation to failure, sprints' },
     { n: 3, name: 'Shred', weeks: [7, 8, 9, 10], color: 'var(--train)', focus: 'Clusters, myo-reps, tri-sets, density' },
     { n: 4, name: 'Peak', weeks: [11, 12], color: 'var(--train)', focus: 'Peak modifiers, final retest' },
     { n: 5, name: 'Taper', weeks: [13], color: 'var(--train)', focus: 'Pump sessions, walks, travel prep' },
   ];
   const WEEKS = {
-    1: { focus: 'RIR 3, ~65% volume, baseline tests', rir: '3' },
-    2: { focus: 'RIR 2, strides return', rir: '2', event: 'Halloween Sat' },
-    3: { focus: 'Top sets, sprints @ 85%, isolation to failure', rir: '1–2' },
-    4: { focus: 'Sprints @ 90%', rir: '1–2' },
-    5: { focus: 'Overhead-press gate check, sprints @ 95%', rir: '1–2' },
+    1: { focus: 'RIR 3, ~65% volume, baseline tests (done)', rir: '3' },
+    2: { focus: 'Paused: neck flare-up and nerve block', rir: '', label: 'Paused' },
+    3: { focus: 'Re-entry: Legs, Pull, Push (Wed–Fri), no HIIT', rir: '3', label: 'Re-entry' },
+    4: { focus: 'RIR 2, Rugby Day returns gently, mile test Sat', rir: '2' },
+    5: { focus: 'First build week: top sets at RIR 2, sprints @ 85%', rir: '2' },
     6: { focus: 'Pivot deload: ~60% of sets, same loads, retest Sat', rir: '3', event: 'Thanksgiving Thu Nov 26', label: 'Pivot' },
     7: { focus: 'New exercises, clusters, myo-reps, 3-s lowering', rir: '1' },
     8: { focus: 'Density up', rir: '1', event: 'Holiday parties start' },
@@ -659,7 +626,7 @@
     sigh5: { cat: 'breath', n: 'Cyclic sighing', sub: 'Morning breath', min: 5, art: 'dawn', breath: true, why: '5 min a day for 28 days lifted mood more than mindfulness meditation in a 108-adult trial (Balban et al., 2023).' },
     physio: { cat: 'breath', n: 'Physiological sigh', sub: 'Before a big call', min: 1, art: 'spark', breath: true, why: 'Double inhale, long exhale. 2–3 breaths drop arousal fast and unload the neck muscles.' },
     box4: { cat: 'breath', n: 'Box breathing', sub: 'Wired and can’t focus', min: 4, art: 'grid', breath: true, why: '4 s in, 4 hold, 4 out, 4 hold.' },
-    ninety: { cat: 'breath', n: '90/90 breathing', sub: 'Ribs down, neck off', min: 2, art: 'tide', breath: true, why: 'Five breaths that start your Armor routine.' },
+    ninety: { cat: 'breath', n: '90/90 breathing', sub: 'Ribs down, neck off', min: 2, art: 'tide', breath: true, why: 'Five slow breaths to settle the system.' },
     breath10: { cat: 'med', n: 'Breath focus', sub: 'Guided · Weeks 1–2', min: 10, art: 'tide' },
     scan12: { cat: 'med', n: 'Body scan', sub: 'Neck and back, without fixing · Weeks 3–4', min: 12, art: 'dusk' },
     scan15: { cat: 'med', n: 'Body scan', sub: 'Longer · Weeks 5–8', min: 15, art: 'dusk' },
@@ -670,7 +637,7 @@
     nsdr10: { cat: 'sleep', n: 'NSDR', sub: 'Non-sleep deep rest', min: 10, art: 'ocean' },
     nsdr20: { cat: 'sleep', n: 'NSDR, extended', sub: 'Stress 6+ or sleep is off', min: 20, art: 'ocean' },
     ground: { cat: 'tool', n: '5-4-3-2-1 grounding', sub: 'Anxiety spike or racing thoughts', min: 2, art: 'spark' },
-    stop: { cat: 'tool', n: 'STOP check', sub: 'Hourly desk reset', min: 1, art: 'grid' },
+    stop: { cat: 'tool', n: 'STOP check', sub: 'Hourly reset', min: 1, art: 'grid' },
   };
   const MIND_CATS = [
     { id: 'breath', n: 'Breathwork' }, { id: 'med', n: 'Meditations' }, { id: 'sleep', n: 'Sleep & recovery' }, { id: 'tool', n: 'Quick tools' },
@@ -714,36 +681,25 @@
     { id: 'trapbar5', n: 'Trap-bar 5RM', how: 'From Week 3', unit: 'lb' },
     { id: 'mile', n: '1-mile run', how: 'Flat, all-out', unit: 'm:ss', goal: '−45 s' },
     { id: 'gauntlet', n: 'The Gauntlet', how: 'Rounds (from Week 7)', unit: 'rounds' },
-    { id: 'neckback', n: 'Neck / back', how: 'Morning, 0–10', unit: '' },
-    { id: 'sideL', n: 'Side bridge, left', how: 'Held to form failure', unit: 's', core: true, goal: 'L/R within 5%' },
-    { id: 'sideR', n: 'Side bridge, right', how: 'Held to form failure', unit: 's', core: true },
-    { id: 'extensor', n: 'Back extensor (Biering-Sørensen)', how: 'Torso level off the bench', unit: 's', core: true, goal: 'Longer than flexor hold' },
-    { id: 'flexor', n: 'Trunk flexor', how: '60° wedge, pulled back 10 cm', unit: 's', core: true, goal: 'Flexor/extensor < 1.0' },
+    { id: 'neckback', n: 'Neck and head pain', how: 'Morning, 0–10', unit: '' },
     { id: 'hlr', n: 'Hanging leg raise', how: 'Strict, legs to 90°+', unit: 'reps', core: true, goal: '+5 reps' },
     { id: 'abwheel', n: 'Ab wheel from knees', how: 'Full range, strict', unit: 'reps', core: true, goal: '+5 reps' },
     { id: 'vacuumMax', n: 'Stomach vacuum', how: 'Max hold, standing', unit: 's', core: true, goal: '60 s' },
   ];
   const SUNDAY_RESET = [
     '7-day average weight and waist', 'Sessions done (out of 6) and average steps', 'Protein days hit (out of 7) and average sleep',
-    'Neck, back and squeeze-test scores', 'Apply the calibration rule', "Book the week's training times; cook protein for Mon–Wed",
+    'Neck and head pain scores', 'Apply the calibration rule', "Book the week's training times; cook protein for Mon–Wed",
     'Photos (every second Sunday)', 'Write down one win from the week',
   ];
   const GATES = [
-    { id: 'ohp', n: 'Overhead pressing', from: 5, rule: 'Neck ≤1/10 for 7 straight days, no arm symptoms', then: 'Half-kneeling 1-arm DB press; seated DB press from Week 7 if still quiet' },
-    { id: 'trapbar', n: 'Trap-bar deadlift', from: 3, rule: 'Morning back pain 0 for 7 days and DB RDL pain-free', then: 'Trap-bar top sets' },
-    { id: 'pendlay', n: 'Pendlay row', from: 7, rule: 'Back pain 0 for 3 weeks', then: 'Replaces chest-supported row' },
-    { id: 'rotation', n: 'Rotation work', from: 7, rule: 'Back pain 0', then: 'Landmine rotational press on Rugby Day' },
-    { id: 'backgate', n: 'Core back gate', from: 7, rule: 'Morning back pain 0 for 3 weeks', then: 'V-ups, dragon flag negatives, loaded rotation' },
-    { id: 'abwheel', n: 'Ab wheel', from: 3, rule: 'Back pain 0 for 7 days', then: 'Ab wheel from knees' },
+    { id: 'ohp', n: 'Overhead pressing', from: 7, rule: 'Neck and head pain ≤1/10 for 7 straight days, no arm symptoms', then: 'Half-kneeling 1-arm DB press; seated DB press from Week 9 if still quiet' },
   ];
   const RED_FLAGS = [
-    'Arm or hand weakness, dropping things, clumsy hands', 'Numbness that spreads, persists, or shows up in both arms', 'Changes in balance or walking',
-    'Back pain with leg pain below the knee, numbness in the groin or saddle area, or bladder or bowel changes', 'Night pain that never eases, or fever',
+    'A sudden, severe headache, or the worst headache of your life', 'Arm or hand weakness, dropping things, numbness that spreads or shows up on both sides',
+    'Changes in vision, speech, balance or walking, or fainting during exercise', 'Fever with neck stiffness or a rash, or redness, swelling or discharge at the injection site',
+    'A headache that builds with exercise, or pain that stops matching what your specialist told you to expect',
   ];
-  const SWAPPED = [
-    ['Barbell back squat', 'Hack squat, belt squat or safety-squat bar'], ['Heavy shrugs, upright rows, behind-the-neck', 'Removed'],
-    ['Dips', 'Incline press'], ['Freestyle with head turns', 'Backstroke, pull buoy, or centre snorkel'], ['Crunches pulling on the head', 'Dead bugs, curl-ups, Pallof presses'],
-  ];
+  const SWAPPED = [];
   const TECHNIQUES = [
     ['Antagonist superset', 'Alternate two exercises, rest only after the pair'], ['Rest-pause', 'After the last set, rest 15 s, do 2 more mini-sets near failure'],
     ['Myo-reps', 'One set of 12–15 to RIR 1, then 4 mini-sets of 3–5 with 5 deep breaths between'], ['Cluster sets', 'Split a heavy set into mini-sets with 15 s breaks (e.g. 3+2) at ~5RM'],
@@ -753,5 +709,7 @@
   window.FS = { EX, P1, P2, P3, MIN, PUMP, RUGBY, TURKEY, SAT, CORE, CORE_NAMES, CORE_FMT, ROUTINES, PHASES, WEEKS,
     FOODS, DRINKS, DRINK_BUDGET, FREE_MEALS, PROTEIN, SUPPS, SLOTS, GUIDES, MIND, MIND_CATS, MIND_TIPS, RESEARCH, PSS10, GAD7,
     TARGET_PATH, BENCHMARKS, SUNDAY_RESET, GATES, RED_FLAGS, SWAPPED, TECHNIQUES,
-    START: '2026-10-19', GOAL: { from: 207.5, to: [192, 195], date: '2027-01-14' } };
+    START: '2026-10-19',
+    PAUSE: { from: '2026-10-26', to: '2026-11-03', sub: 'Neck flare-up and nerve block', why: 'Paused for the neck flare-up and the nerve block. Nothing to catch up: Week 1 is done and training restarts Wednesday Nov 4.' },
+    CW: { 3: 1, 4: 2, 5: 3 }, GOAL: { from: 207.5, to: [192, 195], date: '2027-01-14' } };
 })();

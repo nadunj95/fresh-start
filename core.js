@@ -227,10 +227,12 @@ function weekOf(date) {
   if (n < 0) return 0;
   return Math.floor(n / 7) + 1;
 }
+function cwOf(w) { const m = D.CW || {}; return m[w] != null ? m[w] : w; }
+function isPaused(date) { const p = D.PAUSE; return !!p && date >= p.from && date <= p.to; }
 function weekStart(w) { return addDays(D.START, (w - 1) * 7); }
 function phaseOf(w) {
   if (w <= 0) return { n: 0, name: 'Kickoff' };
-  if (w <= 2) return { n: 1, name: 'Reload' };
+  if (w <= 4) return { n: 1, name: w === 2 ? 'Paused' : w === 3 ? 'Re-entry' : 'Reload' };
   if (w <= 6) return { n: 2, name: w === 6 ? 'Pivot' : 'Build & Burn' };
   if (w <= 10) return { n: 3, name: w === 10 ? 'Holiday Express' : 'Shred' };
   if (w <= 12) return { n: 4, name: 'Peak' };
@@ -241,7 +243,7 @@ const FLY_DATE = '2027-01-15';
 const BIG_DAYS = { '2026-11-26': 'Thanksgiving', '2026-12-24': 'Christmas Eve', '2026-12-25': 'Christmas', '2026-12-31': "New Year's Eve" };
 
 function liftSrc(w, kind) {
-  const P = w <= 2 ? D.P1 : w <= 6 ? D.P2 : D.P3;
+  const c = cwOf(w), P = c <= 2 ? D.P1 : c <= 6 ? D.P2 : D.P3;
   return P[kind];
 }
 function sess(sid, type, src, more) { return Object.assign({ sid, type, src, title: src.title, dur: src.dur, hero: src.hero }, more || {}); }
@@ -249,7 +251,7 @@ function sess(sid, type, src, more) { return Object.assign({ sid, type, src, tit
 /* Everything planned for one date */
 function plan(date) {
   const w = weekOf(date), dw = dowOf(date), ph = phaseOf(w);
-  const P = { date, week: w, dow: dw, phase: ph, sessions: [], walk: null, sit: null, core: null, ramp: null, notes: [], tests: [], armorWed: false, sunday: dw === 6, travel: false };
+  const P = { date, week: w, dow: dw, phase: ph, sessions: [], walk: null, sit: null, core: null, ramp: null, notes: [], tests: [], sunday: dw === 6, travel: false };
   const wkInfo = D.WEEKS[w] || {};
   P.rir = wkInfo.rir || '';
   if (wkInfo.event) P.event = wkInfo.event;
@@ -262,6 +264,12 @@ function plan(date) {
   // main sit
   P.sit = sitFor(w, dw);
 
+  if (isPaused(date)) {
+    P.phase = { n: 0, name: 'Paused' }; P.walk = 'Easy walks, as the neck allows'; P.sit = 'breath10';
+    P.sessions.push({ sid: 'pause', type: 'rest', title: 'Paused', sub: D.PAUSE.sub, dur: '', hero: 'walk' });
+    P.notes.push({ tone: 'mind', t: D.PAUSE.why });
+    return P;
+  }
   if (w === 0) {
     P.sessions.push({ sid: 'kickoff', type: 'rest', title: 'Kickoff Sunday', sub: 'Rest, long walk and set up the week', dur: '15 min', hero: 'walk' });
     P.notes.push({ tone: 'mind', t: 'Week 1 starts tomorrow. Measure your waist at the navel Monday morning and weigh in daily from now on. The scale may rise 1–3 lb in Week 1; that is glycogen and water.' });
@@ -276,7 +284,7 @@ function plan(date) {
       return P;
     }
     P.phase = { n: 6, name: 'Sri Lanka' };
-    P.notes.push({ tone: 'mind', t: 'Never Zero: 2–3 hotel-gym or bodyweight sessions a week, daily Armor, walks, ocean swims on your back or with a snorkel. Keep the MRI swaps until a specialist clears you.' });
+    P.notes.push({ tone: 'mind', t: 'Never Zero: 2–3 hotel-gym or bodyweight sessions a week, walks, ocean swims on your back or with a snorkel. Keep the neck-friendly swaps until your specialist clears you.' });
     if (dw === 0) P.sessions.push(sess('minA', 'lift', D.MIN.minA));
     if (dw === 3) P.sessions.push(sess('minB', 'lift', D.MIN.minB));
     if (dw === 5) P.sessions.push({ sid: 'oceanswim', type: 'cardio', title: 'Ocean swim', sub: 'On your back or with a snorkel', dur: '20–30 min', hero: 'swim', cardio: { min: 25, text: 'Easy ocean swim: backstroke or a centre snorkel so your head stays still.' } });
@@ -286,24 +294,24 @@ function plan(date) {
 
   // Week 13 taper
   if (w === 13) {
-    if (dw === 0) { P.sessions.push(sess('taperFull', 'lift', D.MIN.taperFull)); P.core = 'A'; P.ramp = 'pull'; }
-    if (dw === 1) P.sessions.push({ sid: 'z2taper', type: 'cardio', title: 'Zone 2 + full Armor', sub: 'Taper', dur: '30 min', hero: 'run', cardio: { min: 30, text: 'Zone 2 run 30 min, then full Armor.' } });
-    if (dw === 2) { P.sessions.push(sess('taperUpper', 'lift', D.MIN.taperUpper)); P.ramp = 'push'; P.notes.push({ tone: 'train', t: 'Photos today: front, side, back, same light, morning.' }); }
-    if (dw === 3) { P.sessions.push({ sid: 'pack', type: 'recovery', title: 'Walk, Armor, pack', sub: 'Taper', dur: '45 min', hero: 'walk' }); P.walk = 'Walk 45 min'; }
+    if (dw === 0) { P.sessions.push(sess('taperFull', 'lift', D.MIN.taperFull)); P.core = 'A'; }
+    if (dw === 1) P.sessions.push({ sid: 'z2taper', type: 'cardio', title: 'Zone 2 run', sub: 'Taper', dur: '30 min', hero: 'run', cardio: { min: 30, text: 'Zone 2 run 30 min.' } });
+    if (dw === 2) { P.sessions.push(sess('taperUpper', 'lift', D.MIN.taperUpper)); P.notes.push({ tone: 'train', t: 'Photos today: front, side, back, same light, morning.' }); }
+    if (dw === 3) { P.sessions.push({ sid: 'pack', type: 'recovery', title: 'Walk and pack', sub: 'Taper', dur: '45 min', hero: 'walk' }); P.walk = 'Walk 45 min'; }
     if (dw >= 1 && dw <= 3) P.notes.push({ tone: 'fuel', t: 'Taper food: add about 150 g of carbs today (rice, fruit). Salt and water normal; no water cutting.' });
     return P;
   }
 
-  const holiday = w === 10, pivot = w === 6, peak = w === 11 || w === 12;
+  const c = cwOf(w), bridge = w === 3, holiday = w === 10, pivot = w === 6, peak = w === 11 || w === 12;
   const factor = pivot ? 0.6 : holiday ? 2 / 3 : 1;
   const mods = { factor, pivot, holiday, peak, rir: P.rir };
-  const lift = (kind, core) => { const src = liftSrc(w, kind); P.sessions.push(sess('w' + w + '-' + kind, 'lift', src, { kind, mods })); P.core = core; P.ramp = src.ramp; };
+  const lift = (kind, core) => { const src = liftSrc(w, kind); P.sessions.push(sess('w' + w + '-' + kind, 'lift', src, { kind, mods })); P.core = core; };
   const rugby = () => {
-    const r = D.RUGBY[w <= 2 ? 1 : w <= 6 ? 2 : 3];
+    const r = D.RUGBY[c <= 2 ? 1 : c <= 6 ? 2 : 3];
     P.sessions.push({ sid: 'w' + w + '-rugby', type: 'hiit', title: r.title, sub: r.sub, dur: holiday ? '~40 min' : r.dur, hero: r.hero, src: r, mods });
   };
   const saturday = (optional) => {
-    const s = D.SAT[w]; if (!s) return;
+    const s = D.SAT[c]; if (!s) return;
     P.sessions.push({ sid: 'w' + w + '-sat', type: 'cardio', title: s.title, sub: optional ? 'Optional' : 'Run or swim', dur: s.min + ' min', hero: 'run', cardio: s, optional: optional || s.optional });
   };
 
@@ -311,19 +319,22 @@ function plan(date) {
     case 0: lift('pull', 'A'); break;
     case 1: lift('legs', 'B'); break;
     case 2:
-      if (pivot) { lift('push', 'C'); P.notes.push({ tone: 'train', t: 'Pivot week: Push moves to Wednesday so Thursday morning is the Turkey Burner.' }); }
+      if (bridge) lift('legs', 'B');
+      else if (pivot) { lift('push', 'C'); P.notes.push({ tone: 'train', t: 'Pivot week: Push moves to Wednesday so Thursday morning is the Turkey Burner.' }); }
       else {
-        P.sessions.push({ sid: 'w' + w + '-rec', type: 'recovery', title: 'Recovery', sub: 'Full Armor + walk', dur: '15 min', hero: 'hip_flexor' }); P.armorWed = true;
-        if (w >= 3 && w <= 12 && D.MIN && D.MIN.regen) P.sessions.push(sess('w' + w + '-regen', 'lift', D.MIN.regen, { kind: 'regen', mods, optional: holiday }));
+        P.sessions.push({ sid: 'w' + w + '-rec', type: 'recovery', title: 'Recovery', sub: 'Easy walk, no lifting', dur: '15 min', hero: 'walk' });
+        if (c >= 3 && w <= 12 && D.MIN && D.MIN.regen) P.sessions.push(sess('w' + w + '-regen', 'lift', D.MIN.regen, { kind: 'regen', mods, optional: holiday }));
       }
       break;
     case 3:
-      if (pivot) P.sessions.push({ sid: 'turkey', type: 'hiit', title: D.TURKEY.title, sub: D.TURKEY.sub, dur: D.TURKEY.dur, hero: D.TURKEY.hero, src: D.TURKEY, mods });
+      if (bridge) lift('pull', 'A');
+      else if (pivot) P.sessions.push({ sid: 'turkey', type: 'hiit', title: D.TURKEY.title, sub: D.TURKEY.sub, dur: D.TURKEY.dur, hero: D.TURKEY.hero, src: D.TURKEY, mods });
       else lift('push', 'C');
       if (date === '2026-12-31') P.notes.push({ tone: 'warn', t: "New Year's Eve: Push this morning, walk this afternoon, then enjoy the night with the drink rules." });
       break;
     case 4:
-      if (holiday) { P.sessions.push({ sid: 'xmas', type: 'rest', title: 'Christmas', sub: 'Rugby Day moves to Saturday', dur: '', hero: 'walk' }); P.walk = 'Walk 10–15 min after the big meal'; }
+      if (bridge) lift('push', 'C');
+      else if (holiday) { P.sessions.push({ sid: 'xmas', type: 'rest', title: 'Christmas', sub: 'Rugby Day moves to Saturday', dur: '', hero: 'walk' }); P.walk = 'Walk 10–15 min after the big meal'; }
       else rugby();
       break;
     case 5:
@@ -340,18 +351,19 @@ function plan(date) {
   if (peak && P.sessions.some((s) => s.type === 'lift' && (s.kind === 'pull' || s.kind === 'push'))) P.notes.push({ tone: 'train', t: 'Peak: last set of every isolation exercise is a drop set or myo-reps, plus the 8-min pump finisher.' });
   const hasLift = P.sessions.some((s) => s.type === 'lift' || s.type === 'hiit'), chk0 = peek(date).chk;
   if (hasLift && chk0 && (chk0.neck >= 3 || chk0.arm)) P.notes.push({ tone: 'warn', t: 'High-neck day: carries, hanging ab work and pull-ups are swapped for neck-friendly versions; barbell bench becomes DBs. Arm tingling during a set stops that exercise.' });
-  if (hasLift && chk0 && chk0.back >= 4) P.notes.push({ tone: 'warn', t: 'High-back day: one set fewer, reverse hyper becomes a glute bridge, finisher optional.' });
-  if (w === 2 && dw === 5) P.notes.push({ tone: 'warn', t: 'Halloween tonight. Weekend drink rules apply.' });
+  if (hasLift) P.notes.push({ tone: 'train', t: 'Head and neck rules: chin level, eyes forward, ribs down. Breathe through every rep, no hard Valsalva. Stop the set for shooting pain, tingling or a building headache.' });
+  if (bridge) P.notes.push({ tone: 'warn', t: 'Re-entry week after the nerve block: week-1 loads or 5–10% lighter, RIR 3, no failure, no HIIT. Skip a session rather than push through head or neck symptoms.' });
+  if (w === 5 && P.sessions.some((x) => x.type === 'lift' || x.type === 'hiit')) P.notes.push({ tone: 'warn', t: 'First build week back: keep top sets at RIR 2 and take isolation work to failure on limb-only moves (curls, leg curls, lateral raises). No grinding sets on anything that loads the upper traps.' });
 
   // tests and benchmarks
   if (w === 1 && dw === 0) P.tests.push('pullups', 'waist');
   if (w === 1 && dw === 3) P.tests.push('pushups');
-  if (w === 1 && dw === 6) P.tests.push('sideL', 'sideR', 'extensor', 'flexor', 'hlr', 'abwheel', 'vacuumMax', 'neckback');
-  if (w === 2 && dw === 5) P.tests.push('mile');
-  if (w === 3 && dw === 1) P.tests.push('trapbar5');
-  if (w === 6 && dw === 5) P.tests.push('pullups', 'pushups', 'mile', 'trapbar5', 'sideL', 'sideR', 'extensor', 'flexor', 'hlr', 'abwheel', 'vacuumMax', 'neckback');
+  if (w === 1 && dw === 6) P.tests.push('hlr', 'abwheel', 'vacuumMax', 'neckback');
+  if (w === 4 && dw === 5) P.tests.push('mile');
+  if (w === 5 && dw === 1) P.tests.push('trapbar5');
+  if (w === 6 && dw === 5) P.tests.push('pullups', 'pushups', 'mile', 'trapbar5', 'hlr', 'abwheel', 'vacuumMax', 'neckback');
   if (w === 7 && dw === 4) P.tests.push('gauntlet');
-  if (w === 12) { const T = [['pullups'], ['trapbar5'], [], ['pushups'], ['gauntlet'], ['mile'], ['waist', 'neckback', 'sideL', 'sideR', 'extensor', 'flexor', 'hlr', 'abwheel', 'vacuumMax']]; P.tests.push(...T[dw]); }
+  if (w === 12) { const T = [['pullups'], ['trapbar5'], [], ['pushups'], ['gauntlet'], ['mile'], ['waist', 'neckback', 'hlr', 'abwheel', 'vacuumMax']]; P.tests.push(...T[dw]); }
   if (dw === 6 && w >= 1) P.tests.push('waist');
   P.tests = Array.from(new Set(P.tests));
   return P;
@@ -359,12 +371,13 @@ function plan(date) {
 
 function sitFor(w, dw) {
   if (w <= 0 || w > 13) return 'breath10';
+  w = cwOf(w);
   if (w <= 2) return 'breath10';
   if (w <= 4) return 'scan12';
   if (w <= 8) return dw === 6 ? 'metta15' : [0, 2, 4].includes(dw) ? 'open15' : 'scan15';
   return dw === 6 ? 'sit30' : 'open20';
 }
-function benchCol(w) { return w <= 2 ? 'base' : w <= 8 ? 'w6' : 'w12'; }
+function benchCol(w) { w = cwOf(w); return w <= 2 ? 'base' : w <= 8 ? 'w6' : 'w12'; }
 function mainSession(P) { return P.sessions.find((s) => s.type === 'lift') || P.sessions.find((s) => s.type !== 'rest') || P.sessions[0] || null; }
 function isTraining(s) { return s && ['lift', 'hiit', 'cardio'].includes(s.type) && !s.optional; }
 
@@ -391,7 +404,7 @@ function readiness(date) {
 const READY_TXT = {
   green: ['Green', 'Full session.'],
   yellow: ['Yellow', 'One set fewer per exercise, skip the finisher.'],
-  red: ['Red', 'Armor + walk, or the 30-minute Minimum session.'],
+  red: ['Red', 'Easy walk, or the 30-minute Minimum session.'],
 };
 function streak(date, test) {
   let n = 0, d = date;
@@ -409,15 +422,9 @@ function gateOpen(id, date) {
   if (ov === 'closed') return false;
   const w = weekOf(date);
   const neckQ = () => streak(date, (c) => c.neck <= 1 && !c.arm);
-  const back0 = () => streak(date, (c) => c.back === 0);
   switch (id) {
-    case 'ohp': return w >= 5 && neckQ() >= 7;
-    case 'ohp_seated': return w >= 7 && neckQ() >= 21;
-    case 'trapbar': return w >= 3 && back0() >= 7;
-    case 'pendlay': return w >= 7 && back0() >= 21;
-    case 'rotation': return w >= 7 && back0() >= 1;
-    case 'backgate': return back0() >= 21;
-    case 'abwheel': return back0() >= 7;
+    case 'ohp': return w >= 7 && neckQ() >= 7;
+    case 'ohp_seated': return w >= 9 && neckQ() >= 21;
   }
   return true;
 }
@@ -619,7 +626,7 @@ const WK_MET = [
   ['rec', 'Recovery score', '', 1, 0, 'var(--good)'], ['kcal', 'Calories / day', ' kcal', 0, 0, 'var(--fuel)'],
   ['adh', 'Calories on target', '%', 1, 0, 'var(--fuel)'], ['prot', 'Protein / day', ' g', 1, 0, 'var(--fuel)'],
   ['protDays', 'Protein days hit', '', 1, 0, 'var(--fuel)'], ['aiScore', 'Food score', '/10', 1, 1, 'var(--fuel)'],
-  ['neck', 'Neck pain', '/10', -1, 1, 'var(--bad)'], ['back', 'Low back pain', '/10', -1, 1, 'var(--warn)'],
+  ['neck', 'Neck pain', '/10', -1, 1, 'var(--bad)'], 
   ['stress', 'Stress', '/10', -1, 1, 'var(--mind)'], ['mind', 'Mind minutes', ' min', 1, 0, 'var(--mind)'],
 ];
 function weekCompute(w) {
@@ -639,11 +646,11 @@ function weekCompute(w) {
     put('kcalAct', h.kcal); put('sleep', sleepH(dd)); if (h.vo2 != null) vo2 = h.vo2;
     (h.wk || []).forEach((x) => { wkN++; wkMin += hkWk(x).span || 0; }); // elapsed minutes (start to end), the one basis every workout has
     if (hkOf(dd) && (sleepH(dd) != null || h.hrv != null)) put('rec', recovery(dd).score);
-    const ch = d.chk || {}; ['neck', 'back', 'stress'].forEach((k) => put(k, ch[k]));
+    const ch = d.chk || {}; ['neck', 'stress'].forEach((k) => put(k, ch[k]));
     (d.mind || []).forEach((x) => { mind += x.min || 0; hasMind = true; });
   }
   const m = { weight: avg7(last), sess: sessT ? sess : null, wkN: wkN || null, wkMin: wkMin || null, vo2, mind: hasMind ? Math.round(mind) : null, adh: kd ? Math.round(adhOk / kd * 100) : null, protDays: kd ? protDays : null };
-  ['exmin', 'kcalAct', 'steps', 'sleep', 'hrv', 'rhr', 'whr', 'resp', 'spo2', 'rec', 'kcal', 'prot', 'aiScore', 'neck', 'back', 'stress'].forEach((k) => { m[k] = mean(k); });
+  ['exmin', 'kcalAct', 'steps', 'sleep', 'hrv', 'rhr', 'whr', 'resp', 'spo2', 'rec', 'kcal', 'prot', 'aiScore', 'neck', 'stress'].forEach((k) => { m[k] = mean(k); });
   if (m.sess === 0 && days === 0) m.sess = null;
   return { w, from: ws, to: we, days, kd, sessT, m };
 }
@@ -693,9 +700,9 @@ function calibration(date) {
   if (a1 == null || a0 == null) return { sun, rate: null };
   const rate = a0 - a1, prev = am1 != null ? am1 - a0 : null;
   const w = weekOf(sun);
-  const ignore = w <= 1 || ['2026-11-29', '2026-12-27', '2027-01-03'].includes(sun);
+  const ignore = w <= 1 || ['2026-11-08', '2026-11-15', '2026-11-29', '2026-12-27', '2027-01-03'].includes(sun);
   let rec = 'Losing 0.8–1.4 lb a week: change nothing.', act = 0, tone = 'good';
-  if (ignore) { rec = 'Ignore this week: Week 1 and the weeks after Thanksgiving and Christmas are water.'; tone = 'mind'; }
+  if (ignore) { rec = 'Ignore this week: Week 1, the restart after the nerve block and the weeks after Thanksgiving and Christmas are water.'; tone = 'mind'; }
   else if (rate < 0.7 && prev != null && prev < 0.7) { rec = 'Under 0.7 lb a week for 2 weeks: cut 150 kcal a day (from carbs or fat, never protein) or add 2,000 steps a day.'; act = -150; tone = 'warn'; }
   else if (rate > 1.8 && prev != null && prev > 1.8) { rec = 'Over 1.8 lb a week for 2 weeks: add 150 kcal a day of carbs. Losing faster costs muscle.'; act = 150; tone = 'warn'; }
   else if (rate < 0.7 || rate > 1.8) { rec = 'Outside 0.8–1.4 lb this week. One week is noise; act if it repeats next Sunday.'; tone = 'mind'; }

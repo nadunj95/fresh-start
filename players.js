@@ -274,7 +274,6 @@ PA.doneFinish = () => {
 function routineSteps(id, date) {
   const R = D.ROUTINES[id], w = weekOf(date), dw = dowOf(date);
   let steps = R.steps.filter((s) => !(s.big3 && w > 4 && ![0, 2, 4].includes(dw)));
-  if (id === 'armor' && plan(date).armorWed) steps = steps.concat(D.ROUTINES.armorWed.steps);
   return steps.map((s) => {
     if (s.vacuum) { const h = w <= 4 ? 20 : w <= 8 ? 30 : 45; return Object.assign({}, s, { hold: h, dose: '3 × ' + h + ' s' }); }
     return s;
@@ -325,9 +324,7 @@ PA.routineNext = () => {
 };
 PA.routineClose = () => { pop(); };
 function finishRoutine(p) {
-  const key = p.id.startsWith('ramp_') ? 'ramp' : p.id;
-  if (p.id === 'desk') { const d = day(p.date); d.desk = (d.desk || 0) + 1; touch(p.date); }
-  else setDone(p.date, key, true);
+  setDone(p.date, p.id, true);
   Sound.done(); pop(); toast(D.ROUTINES[p.id].title + ' done');
 }
 TICKS.routine = (p) => {
@@ -352,7 +349,7 @@ TICKS.routine = (p) => {
 /* ================================================================== TIMERS (core finishers, rugby blocks, cardio) */
 function openTimer(date, cfg) { push('timer', { date, cfg, state: 'ready', t0: 0, paused: 0, pauseAt: 0, rounds: 0, rep: 0, rung: 0, ri: 0 }); }
 function openCore(letter, wOverride) {
-  const date = topDate(), w = wOverride || clamp(weekOf(date), 1, 13), cp = w <= 2 ? 1 : w <= 6 ? 2 : 3;
+  const date = topDate(), w = cwOf(wOverride || clamp(weekOf(date), 1, 13)), cp = w <= 2 ? 1 : w <= 6 ? 2 : 3;
   const f = D.CORE_FMT[w], list = D.CORE[cp][letter].map((ex) => dayEx(ex, date).ex);
   const segs = [];
   for (let r = 0; r < f[2]; r++) list.forEach((ex, i) => {
@@ -364,7 +361,7 @@ function openCore(letter, wOverride) {
 }
 const dxi = (items, date) => items.map((x) => Object.assign({}, x, { ex: dayEx(x.ex, date).ex }));
 function openBlock(date, sid, i) {
-  const s = findSession(date, sid), b = s.src.blocks[i], w = weekOf(date), key = 'b:' + sid + ':' + i;
+  const s = findSession(date, sid), b = s.src.blocks[i], w = cwOf(weekOf(date)), key = 'b:' + sid + ':' + i;
   if (b.kind === 'interval') {
     const segs = [];
     for (let r = 0; r < b.rounds; r++) { segs.push({ kind: 'work', dur: b.work, ex: b.ex, label: 'Hard · RPE 8' }); if (r < b.rounds - 1) segs.push({ kind: 'rest', dur: b.restI, ex: b.ex, label: 'Easy' }); }

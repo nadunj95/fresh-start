@@ -78,7 +78,6 @@ function checklist(date) {
   const P = plan(date), d = peek(date), rows = [];
   const dn = (k) => isDone(date, k);
   rows.push({ key: 'morning', t: 'Morning light + cyclic sighing', s: '5 min · outside within an hour of waking', ic: 'sun', a: 'mind', v: 'sigh5', tone: 'mind' });
-  rows.push({ key: 'armor', t: P.armorWed ? 'Full Armor + hip add-on' : 'Armor', s: (P.armorWed ? '17' : '12') + ' min · neck, back and groin insurance', ic: 'shield', a: 'routine', v: 'armor' });
   rows.push({ key: 'deepcore', t: 'Deep Core', s: '4 min · inner abs, before food if you can', ic: 'core', a: 'routine', v: 'deepcore' });
   P.sessions.forEach((s) => {
     if (s.type === 'rest' && s.sid !== 'kickoff') return;
@@ -122,7 +121,7 @@ function vToday() {
   const ms = mainSession(P);
   if (ms) h += '<div class="pad section" style="margin-top:18px">' + sessionHero(ms, date) + '</div>';
   h += '<div class="pad" style="margin-top:10px">' + (hkConnected() ? recoveryCard(date) : (date === t ? hkConnectRow() : '') + (readiness(date) || ui.editReady ? readinessCard(date) :
-    '<button class="card row" style="width:100%;text-align:left;gap:12px" data-a="sheet" data-v="ready"><span style="width:32px;height:32px;border-radius:8px;background:var(--bad);color:#fff;display:grid;place-items:center;flex:none">' + ic('shield').replace('<svg', '<svg width="19" height="19"') + '</span><span class="grow"><span style="font-weight:600;display:block">30-second readiness check</span><span class="small muted">Sleep, neck, back. Sets today’s volume</span></span><span class="btn sm ghost">Check in</span></button>')) + '</div>';
+    '<button class="card row" style="width:100%;text-align:left;gap:12px" data-a="sheet" data-v="ready"><span style="width:32px;height:32px;border-radius:8px;background:var(--bad);color:#fff;display:grid;place-items:center;flex:none">' + ic('shield').replace('<svg', '<svg width="19" height="19"') + '</span><span class="grow"><span style="font-weight:600;display:block">30-second readiness check</span><span class="small muted">Sleep, neck and head. Sets today’s volume</span></span><span class="btn sm ghost">Check in</span></button>')) + '</div>';
   P.sessions.filter((s) => s !== ms).forEach((s) => { h += '<div class="pad" style="margin-top:10px">' + sessionHero(s, date, true) + '</div>'; });
 
   h += '<div class="pad" style="margin-top:12px">' + ringsCard(date) + '</div>';
@@ -137,10 +136,6 @@ function vToday() {
       (r.auto != null ? '<span class="check' + (r.done ? ' on' : '') + '" aria-label="' + (r.done ? 'Done' : 'Not yet') + '">' + (r.done ? ic('check') : '') + '</span>' : checkBtn(r.done, 'tick', r.key, r.t)) + '</div>';
   });
   h += '</div>';
-  if (dowOf(date) < 5 && P.week >= 0) {
-    const n = d.desk || 0;
-    h += '<div class="card row" style="margin-top:10px"><span style="width:32px;height:32px;border-radius:8px;background:var(--train);color:#fff;display:grid;place-items:center;flex:none">' + ic('desk').replace('<svg', '<svg width="19" height="19"') + '</span><button class="grow" style="text-align:left" data-a="routine" data-v="desk"><div style="font-weight:600">Desk resets</div><div class="small muted">Every 60 min: chin tucks, blades down, doorway stretch, stand</div></button><div class="row" style="gap:6px"><button class="icon-btn" style="width:36px;height:36px" data-a="desk" data-v="-1" aria-label="One fewer">' + ic('minus') + '</button><span class="h-md tnum" style="min-width:22px;text-align:center">' + n + '</span><button class="icon-btn" style="width:36px;height:36px" data-a="desk" data-v="1" aria-label="One more">' + ic('plus') + '</button></div></div>';
-  }
   h += '</section>';
 
   // fuel snapshot
@@ -159,7 +154,7 @@ function vToday() {
 
 function ringsCard(date) {
   const P = plan(date), rows = checklist(date).filter((r) => !r.optional);
-  const tr = rows.filter((r) => r.session || ['armor', 'deepcore', 'core'].includes(r.key)), trD = tr.filter((r) => r.done).length;
+  const tr = rows.filter((r) => r.session || ['deepcore', 'core'].includes(r.key)), trD = tr.filter((r) => r.done).length;
   const prot = totals(date).p, mm = (peek(date).mind || []).reduce((a, x) => a + (x.min || 0), 0), mT = ((D.MIND[P.sit] || {}).min || 10) + 5;
   const R = [[trD / Math.max(1, tr.length), 'var(--train)'], [prot / targets(date).p[0], 'var(--fuel)'], [mm / mT, 'var(--mind)']];
   let svg = '<svg width="108" height="108" viewBox="0 0 108 108" aria-hidden="true">';
@@ -193,7 +188,7 @@ function readinessForm(date) {
     : '<div><span class="lbl">Sleep last night</span><div class="seg">' + [[4, 'Under 5 h'], [6, '5–7 h'], [8, '7 h +']].map(([v, l]) => '<button class="' + (c.sleep === v ? 'on' : '') + '" data-a="chk" data-k="sleep" data-v="' + v + '">' + l + '</button>').join('') + '</div>' +
       (hs != null ? '<button class="xs" style="color:var(--link);font-weight:600;margin-top:6px" data-a="chkClr" data-k="sleep">Use Apple Health instead (' + fmtHM(hs) + ')</button>' : '') + '</div>';
   return '<div class="stack" style="margin-top:12px">' + sleepRow +
-    scaleRow('Neck (0–10)', 'neck', c.neck) + scaleRow('Low back, morning (0–10)', 'back', c.back) +
+    scaleRow('Neck and head pain (0–10)', 'neck', c.neck) +
     '<div class="row" style="gap:8px;flex-wrap:wrap">' + [['arm', 'Arm tingling'], ['sore', 'Heavy soreness'], ['sick', 'Sick']].map(([k, l]) => '<button class="chip' + (c[k] ? ' bad' : '') + '" style="height:34px" data-a="chkT" data-k="' + k + '">' + l + '</button>').join('') + '</div></div>';
 }
 function scaleRow(label, key, val, max = 10) {
@@ -235,7 +230,7 @@ function vTrain() {
   h += '</div></section>';
 
   h += '<section class="section"><div class="sec-h pad"><h2 class="h-md">Daily routines</h2></div><div class="rail pad">' +
-    [['armor', 'Armor', '10 min · every morning'], ['deepcore', 'Deep Core', '4 min · every morning'], ['ramp_pull', 'Rehab Ramp · Pull', '8 min · before lifting'], ['ramp_push', 'Rehab Ramp · Push', '8 min · before lifting'], ['ramp_legs', 'Rehab Ramp · Legs', '8 min · before lifting'], ['armorWed', 'Hip add-on', '5 min · Wednesdays'], ['desk', 'Desk reset', '2 min · every 60 min']]
+    [['deepcore', 'Deep Core', '4 min · every morning']]
       .map(([id, n, sub]) => routineTile(id, n, sub)).join('') + '</div></section>';
 
   const cp = w <= 2 ? 1 : w <= 6 ? 2 : 3, f = D.CORE_FMT[w];
@@ -259,11 +254,10 @@ function lRules() {
   const fold = (t, items, open) => '<details class="fold"' + (open ? ' open' : '') + '><summary>' + t + '</summary><div class="fb"><ul>' + items.map((x) => '<li>' + x + '</li>').join('') + '</ul></div></details>';
   h += fold('Progression and effort', ['<b>Main lifts: top set + back-offs.</b> Hit the top of the range at the target RIR → add 5 lb (upper) or 10 lb (lower) next week. Back-offs 10–15% lighter.', '<b>Accessories: double progression.</b> Top of the rep range on all sets → add weight.', '<b>Effort:</b> Phase 1 RIR 3 (Wk 1), RIR 2 (Wk 2). Phase 2 compounds RIR 1–2, last isolation set RIR 0–1. Phases 3–4 compounds RIR 1, last isolation set to failure.', '<b>Rest:</b> compounds 2 min (90 s in Phase 3), supersets 45–60 s, tri-sets and finishers 30–45 s. Use the timer, every set.', 'Strength rises in Weeks 1–6 and holds in Weeks 7–12. Holding strength in a deficit means you are keeping muscle.'], true);
   h += fold('Pain traffic light', ['0–2/10: train.', '3–5/10: reduce load or range, or swap the exercise.', 'Above 5, or worse the next morning: drop that movement for the week, keep the rest.', '<b>Any tingling down the arm during a set: stop that exercise for the day, whatever the score.</b>']);
-  h += fold('Readiness check', ['<b style="color:var(--good)">Green</b> (slept 7+ h, neck ≤2, feeling good): full session.', '<b style="color:var(--warn)">Yellow</b> (5–7 h sleep, neck 3–4, or heavy soreness): one set fewer per exercise, skip the finisher.', '<b style="color:var(--bad)">Red</b> (under 5 h, neck 5+, arm symptoms, or sick): Armor + walk, or the 30-minute Minimum session.']);
+  h += fold('Readiness check', ['<b style="color:var(--good)">Green</b> (slept 7+ h, neck ≤2, feeling good): full session.', '<b style="color:var(--warn)">Yellow</b> (5–7 h sleep, neck 3–4, or heavy soreness): one set fewer per exercise, skip the finisher.', '<b style="color:var(--bad)">Red</b> (under 5 h, neck 5+, arm symptoms, or sick): Easy walk, or the 30-minute Minimum session.']);
   h += fold('Gates', D.GATES.map((g) => '<b>' + g.n + '</b> (from Week ' + g.from + '): opens when ' + g.rule.toLowerCase() + '. Then: ' + g.then + '.'));
   h += fold('Intensity techniques', D.TECHNIQUES.map(([a, b]) => '<b>' + a + ':</b> ' + b));
-  h += fold('Swapped until the MRI', D.SWAPPED.map(([a, b]) => a + ' → ' + b));
-  h += fold('Never Zero', ['Never miss twice. One missed session is noise; two in a row is a trend.', 'Missed sessions are dropped, not crammed into the next day.', 'Back after more than 7 days off: restart at last week’s loads minus 10%.', 'Armor happens daily, even in the worst week.']);
+  h += fold('Never Zero', ['Never miss twice. One missed session is noise; two in a row is a trend.', 'Missed sessions are dropped, not crammed into the next day.', 'Back after more than 7 days off: restart at last week’s loads minus 10%.', 'Even in the worst week, walk and do your own physio.']);
   h += fold('Red flags: see a doctor now', D.RED_FLAGS.map(esc));
   return h + '</div></div></div>';
 }
@@ -324,7 +318,7 @@ function testsCard(date, P) {
 function liftOverview(s, date, P) {
   const items = sessionItems(s, date), groups = groupItems(items);
   let h = '';
-  if (s.src.ramp) h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Warm-up</h2><span class="small muted">8 min</span></div><div class="list"><div class="li"><button class="row grow" style="gap:14px;text-align:left" data-a="routine" data-v="ramp_' + s.src.ramp + '">' + exThumb('band_face_pull', 52) + '<span class="grow"><span class="t" style="display:block">Rehab Ramp · ' + cap(s.src.ramp) + ' add-on</span><span class="s" style="display:block">Breathing, chin tucks, face pulls, wall slides, bridges</span></span></button>' + checkBtn(isDone(date, 'ramp'), 'tick', 'ramp', 'Rehab Ramp done') + '</div></div></section>';
+  if (false) h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Warm-up</h2><span class="small muted">8 min</span></div><div class="list"><div class="li"><button class="row grow" style="gap:14px;text-align:left" data-a="routine" data-v="ramp_' + s.src.ramp + '">' + exThumb('band_face_pull', 52) + '<span class="grow"><span class="t" style="display:block">Rehab Ramp · ' + cap(s.src.ramp) + ' add-on</span><span class="s" style="display:block">Breathing, chin tucks, face pulls, wall slides, bridges</span></span></button>' + checkBtn(isDone(date, 'ramp'), 'tick', 'ramp', 'Rehab Ramp done') + '</div></div></section>';
   h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Workout</h2><span class="small muted">' + items.length + ' exercises</span></div>';
   groups.forEach((g) => {
     const ss = g.items.length > 1, last = g.items[g.items.length - 1];
@@ -335,7 +329,7 @@ function liftOverview(s, date, P) {
   });
   h += '</section>';
   if (P.core && !s.min) {
-    const cp = P.week <= 2 ? 1 : P.week <= 6 ? 2 : 3, f = D.CORE_FMT[clamp(P.week, 1, 13)];
+    const cwk = cwOf(P.week), cp = cwk <= 2 ? 1 : cwk <= 6 ? 2 : 3, f = D.CORE_FMT[clamp(cwk, 1, 13)];
     h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Core finisher</h2><span class="small muted">' + f[0] + '/' + f[1] + ' s · ' + f[2] + (f[2] > 1 ? ' rounds' : ' round') + '</span></div><div class="list"><div class="li"><button class="row grow" style="gap:14px;text-align:left" data-a="core" data-v="' + P.core + '">' + exThumb(D.CORE[cp][P.core][0], 52) + '<span class="grow"><span class="t" style="display:block">' + esc(D.CORE_NAMES[P.core]) + '</span><span class="s" style="display:block">' + D.CORE[cp][P.core].map((e) => EX[e].n.split(',')[0]).map(esc).join(' → ') + '</span></span></button>' + checkBtn(isDone(date, 'core'), 'tick', 'core', 'Core finisher done') + '</div></div>' + (readiness(date) === 'yellow' ? '<p class="small muted" style="margin:8px 2px 0">Yellow day: skip the finisher.</p>' : '') + '</section>';
   }
   return h;
@@ -409,13 +403,14 @@ function cardioOverview(s, date, P) {
 function restOverview(s, date, P) {
   const rows = [];
   if (s.sid === 'kickoff') rows.push(['k:waist', 'Get a tape measure ready for Monday', 'Waist at the navel, relaxed, morning'], ['k:weigh', 'Weigh in tomorrow morning', 'Daily weigh-ins feed the 7-day average'], ['k:book', "Book the week's training times", 'Mon Pull · Tue Legs · Thu Push · Fri Rugby · Sat run'], ['k:cook', 'Cook protein for Mon–Wed', 'Chicken, 93/7 beef, eggs, cottage cheese'], ['k:reminder', 'Set a recurring desk-reset reminder', 'Every 60 min on workdays']);
-  if (s.type === 'recovery' && s.sid !== 'pack') rows.push(['armor', 'Full Armor', '12 min'], ['armorWed', 'Hip add-on: 90/90 switches, adductor rockback, hip flexor stretch', '5 min'], ['walk', P.walk || 'Walk 40–45 min', 'Nose breathing']);
-  if (s.sid === 'pack') rows.push(['walk', 'Walk 45 min', ''], ['armor', 'Armor', '12 min'], ['k:pack', 'Pack: neck pillow, compression socks, protein snacks', '']);
-  if (s.sid === 'sunday' || s.sid === 'xmas') rows.push(['walk', P.walk || 'Long walk 45–60 min', s.sid === 'sunday' ? 'Make it phone-free: no podcast, no calls' : 'After the big meal'], ['reset', 'Sunday Reset', 'Open the weekly check'], ['armor', 'Armor', '12 min']);
-  if (s.type === 'travel') rows.push(['t:walk', 'Walk the aisle every 1–2 h', ''], ['t:socks', 'Compression socks', ''], ['t:pillow', 'Supportive neck pillow', ''], ['t:water', '3 L of water', ''], ['t:protein', 'Protein snacks', ''], ['armor', 'Armor before you leave', '']);
+  if (s.sid === 'pause') rows.push(['walk', P.walk || 'Easy walk', 'Only what the neck allows']);
+  if (s.type === 'recovery' && s.sid !== 'pack') rows.push(['walk', P.walk || 'Walk 40–45 min', 'Nose breathing']);
+  if (s.sid === 'pack') rows.push(['walk', 'Walk 45 min', ''], ['k:pack', 'Pack: neck pillow, compression socks, protein snacks', '']);
+  if (s.sid === 'sunday' || s.sid === 'xmas') rows.push(['walk', P.walk || 'Long walk 45–60 min', s.sid === 'sunday' ? 'Make it phone-free: no podcast, no calls' : 'After the big meal'], ['reset', 'Sunday Reset', 'Open the weekly check']);
+  if (s.type === 'travel') rows.push(['t:walk', 'Walk the aisle every 1–2 h', ''], ['t:socks', 'Compression socks', ''], ['t:pillow', 'Supportive neck pillow', ''], ['t:water', '3 L of water', ''], ['t:protein', 'Protein snacks', '']);
   let h = '<section class="pad section"><div class="sec-h"><h2 class="h-md">' + (s.type === 'travel' ? 'Travel checklist' : 'Today') + '</h2></div><div class="list">';
   rows.forEach(([k, t, sub]) => {
-    const act = k === 'reset' ? 'data-a="sheet" data-v="sunday"' : k === 'armorWed' ? 'data-a="routine" data-v="armorWed"' : k === 'armor' ? 'data-a="routine" data-v="armor"' : '';
+    const act = k === 'reset' ? 'data-a="sheet" data-v="sunday"' : '';
     h += '<div class="li"><' + (act ? 'button ' + act : 'div') + ' class="grow" style="text-align:left"><span class="t" style="display:block">' + esc(t) + '</span>' + (sub ? '<span class="s" style="display:block">' + esc(sub) + '</span>' : '') + '</' + (act ? 'button' : 'div') + '>' + checkBtn(isDone(date, k), 'tick', k, t) + '</div>';
   });
   return h + '</div></section>';
@@ -541,7 +536,7 @@ function vProgress() {
   h += hkProgress();
 
   // trends
-  h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Check-ins, last 14 days</h2></div><div class="card stack">' + [['neck', 'Neck', 10, 'var(--bad)'], ['back', 'Low back', 10, 'var(--warn)'], ['stress', 'Stress', 10, 'var(--mind)']].map(([k, n, max, col]) => {
+  h += '<section class="pad section"><div class="sec-h"><h2 class="h-md">Check-ins, last 14 days</h2></div><div class="card stack">' + [['neck', 'Neck', 10, 'var(--bad)'], ['stress', 'Stress', 10, 'var(--mind)']].map(([k, n, max, col]) => {
     let bars = '', last = null;
     for (let i = 13; i >= 0; i--) { const v = (peek(addDays(t, -i)).chk || {})[k]; if (v != null) last = v; bars += '<i style="height:' + (v == null ? 2 : Math.max(3, v / max * 100)) + '%;background:' + (v == null ? 'var(--card-3)' : col) + ';opacity:' + (v == null ? 1 : 0.85) + '"></i>'; }
     return '<div class="row" style="gap:12px"><div style="width:74px"><div class="small fg2">' + n + '</div><div class="h-md tnum">' + (last == null ? '–' : last) + '</div></div><div class="sparkbars grow">' + bars + '</div></div>';
@@ -598,7 +593,7 @@ function wkHeadline(w) {
   // [key, label, smallest change worth mentioning, how to say it]
   const C = [['sleep', 'sleep', 0.15, (d) => Math.round(Math.abs(d) * 60) + ' min'], ['rhr', 'resting HR', 1, (d) => Math.round(Math.abs(d)) + ' bpm'], ['hrv', 'HRV', 3, (d) => Math.round(Math.abs(d)) + ' ms'],
     ['weight', 'weight', 0.5, (d) => Math.abs(d).toFixed(1) + ' ' + S.settings.unit], ['steps', 'steps', 800, (d) => fmtN(Math.abs(d)) + ' a day'], ['protDays', 'protein days', 1, (d) => Math.abs(d)],
-    ['back', 'back pain', 1, (d) => Math.abs(d).toFixed(1)], ['neck', 'neck pain', 1, (d) => Math.abs(d).toFixed(1)], ['stress', 'stress', 1, (d) => Math.abs(d).toFixed(1)], ['vo2', 'VO2 max', 0.5, (d) => Math.abs(d).toFixed(1)]];
+    ['neck', 'neck pain', 1, (d) => Math.abs(d).toFixed(1)], ['stress', 'stress', 1, (d) => Math.abs(d).toFixed(1)], ['vo2', 'VO2 max', 0.5, (d) => Math.abs(d).toFixed(1)]];
   const found = [];
   C.forEach(([k, n, min, say]) => { const p = wkPrev(k, w); if (m[k] == null || p == null) return; const d = m[k] - p; if (Math.abs(d) >= min) found.push({ sc: Math.abs(d) / min, t: n + (d > 0 ? ' up ' : ' down ') + say(d) }); });
   found.sort((a, b) => b.sc - a.sc).slice(0, 3).forEach((x) => bits.push(x.t));
@@ -854,7 +849,6 @@ A.tick = (el) => {
   render();
 };
 A.toggle = (el) => A.tick(el);
-A.desk = (el) => { const d = day(ui.date); d.desk = Math.max(0, (d.desk || 0) + +el.dataset.v); touch(ui.date); render(); };
 A.routine = (el) => openRoutine(el.dataset.v);
 A.core = (el) => openCore(el.dataset.v, el.dataset.w ? +el.dataset.w : null);
 A.mind = (el) => openMind(el.dataset.v);

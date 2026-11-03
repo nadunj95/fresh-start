@@ -368,7 +368,7 @@ const PUSH_TXT = {
   push: ['Push', 'Recovered and fresh. Go after it inside the plan: top of every rep range, take the load jumps, finisher at full effort.'],
   green: ['Train as written', 'A normal day. Full session as planned.'],
   yellow: ['Hold back', 'Recovery is down. One set fewer per exercise, skip the finisher.'],
-  red: ['Recover', 'Armor + walk, or the 30-minute Minimum session.'],
+  red: ['Recover', 'Easy walk, or the 30-minute Minimum session.'],
 };
 
 function recovery(date) {
